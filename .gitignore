@@ -1,0 +1,42 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Runtime temp
+tmp_runtime/
+.tmp/
+tmp/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Large model/data artifacts (avoid GitHub size limit failures)
+result/*.tar
+result/*.pth
+result/*.pt
+result/*.ckpt
+
+dataset/Climate/
+dataset/l8_images/
+dataset/l8_images_simclr_LUCAS/
+dataset/l8_images_simclr_RaCA/
+dataset/simclr/
+dataset/simclr_past/
+dataset/simclr_RaCA/
+dataset/shapefiles/
+
+dataset/*.zip
+dataset/*.tif
+dataset/lucas2015corr_use.csv
+dataset/RapidCarbon.csv
+dataset/LUCAS_2015_all_*.csv

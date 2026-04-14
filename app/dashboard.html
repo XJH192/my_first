@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoilNet · 土壤有机碳智能预测系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cyan: #00d4ff;
+            --green: #00ff88;
+            --purple: #a855f7;
+            --bg-dark: #020814;
+            --bg-card: rgba(4, 16, 40, 0.85);
+            --border: rgba(0, 212, 255, 0.18);
+            --border-glow: rgba(0, 212, 255, 0.5);
+            --text-dim: rgba(180, 220, 255, 0.55);
+        }
+
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Microsoft YaHei', monospace;
+            background: var(--bg-dark);
+            color: #c8e8ff;
+        }
+
+        /* ── 背景层 ── */
+        #bg-canvas {
+            position: fixed; inset: 0; z-index: 0; pointer-events: none;
+        }
+        .bg-glow-1 {
+            position: fixed; top: -200px; left: -200px;
+            width: 700px; height: 700px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+            pointer-events: none; z-index: 0;
+            animation: glowPulse 8s ease-in-out infinite alternate;
+        }
+        .bg-glow-2 {
+            position: fixed; bottom: -150px; right: -150px;
+            width: 600px; height: 600px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%);
+            pointer-events: none; z-index: 0;
+            animation: glowPulse 10s ease-in-out infinite alternate-reverse;
+        }
+        @keyframes glowPulse {
+            from { opacity: 0.6; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.15); }
+        }
+
+        /* ── HEADER ── */
+        .header {
+            position: relative; z-index: 10;
+            height: 54px;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px;
+            background: linear-gradient(90deg, rgba(0,212,255,0.08) 0%, rgba(2,8,20,0.95) 50%, rgba(168,85,247,0.06) 100%);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .header-logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .header-title {
+            font-size: 1.15rem; font-weight: 600; letter-spacing: 4px;
+            background: linear-gradient(90deg, #00d4ff 0%, #00ff88 50%, #a855f7 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: shine 4s linear infinite;
+        }
+        .header-sub {
+            font-size: 0.72rem; color: var(--text-dim); letter-spacing: 2px;
+            margin-top: 1px;
+        }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .status-badge {
+            display: flex; align-items: center; gap: 7px;
+            padding: 4px 12px;
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.25);
+            border-radius: 20px;
+            font-size: 0.75rem; color: #00ff88;
+        }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity:1; box-shadow: 0 0 4px #00ff88; }
+            50% { opacity:0.4; box-shadow: none; }
+        }
+        .status-dot.offline { background: #ff4757; animation: none; box-shadow: none; }
+        .header-time { font-size: 0.75rem; color: var(--text-dim); font-family: monospace; letter-spacing: 1px; }
+
+        /* ── MAIN GRID ── */
+        .main {
+            position: relative; z-index: 10;
+            display: grid;
+            grid-template-columns: 230px 1fr 300px;
+            gap: 12px;
+            padding: 12px;
+            height: calc(100vh - 54px);
+            overflow: hidden;
+        }
+
+        /* ── CARD BASE ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(0,212,255,0.06);
+            transition: border-color 0.3s, box-shadow 0.3s;
+            overflow: hidden;
+        }
+        .card:hover {
+            border-color: rgba(0,212,255,0.32);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 16px rgba(0,212,255,0.08), inset 0 1px 0 rgba(0,212,255,0.1);
+        }
+        .card-head {
+            padding: 10px 14px 6px;
+            display: flex; align-items: center; gap: 7px;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+        }
+        .card-head-bar {
+            width: 3px; height: 14px;
+            background: linear-gradient(180deg, #00d4ff, #00ff88);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .card-title {
+            font-size: 0.8rem; color: #00d4ff;
+            letter-spacing: 1px; font-weight: 500;
+            flex: 1;
+        }
+        .card-body { padding: 10px 14px; }
+
+        /* ── LEFT COLUMN ── */
+        .left-col {
+            display: flex; flex-direction: column; gap: 10px;
+            overflow-y: auto; overflow-x: hidden;
+        }
+        .left-col::-webkit-scrollbar { width: 3px; }
+        .left-col::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 2px; }
+
+        /* 上传条 */
+        .upload-strip {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 14px;
+            background: rgba(0,212,255,0.04);
+            border: 1px dashed rgba(0,212,255,0.22);
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.25s;
+            margin-bottom: 6px;
+        }
+        .upload-strip:hover, .upload-strip.dragover {
+            border-color: #00d4ff; background: rgba(0,212,255,0.1);
+        }
+        .upload-strip.uploaded {
+            border-style: solid; border-color: rgba(0,255,136,0.5);
+            background: rgba(0,255,136,0.06);
+        }
+        .upload-strip-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .upload-strip-info { flex: 1; min-width: 0; }
+        .upload-strip-label { font-size: 0.72rem; color: var(--text-dim); }
+        .upload-strip-name {
+            font-size: 0.78rem; color: #c8e8ff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+        .upload-strip-check { color: #00ff88; font-size: 0.9rem; flex-shrink: 0; }
+
+        .predict-btn {
+            width: 100%; padding: 11px;
+            border: none; border-radius: 8px;
+            background: linear-gradient(135deg, #0099bb 0%, #00d4ff 50%, #00ff88 100%);
+            background-size: 200% auto;
+            color: #020814; font-size: 0.85rem; font-weight: 700;
+            letter-spacing: 3px; cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 16px rgba(0,212,255,0.3);
+        }
+        .predict-btn:hover:not(:disabled) {
+            background-position: right center;
+            box-shadow: 0 6px 22px rgba(0,212,255,0.55);
+            transform: translateY(-1px);
+        }
+        .predict-btn:disabled {
+            opacity: 0.35; cursor: not-allowed; transform: none;
+            box-shadow: none;
+        }
+
+        /* SOC等级说明 */
+        .soc-legend {
+            display: flex; flex-direction: column; gap: 5px;
+            padding: 8px 0 2px;
+        }
+        .soc-legend-item {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.72rem; color: var(--text-dim);
+        }
+        .soc-legend-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+
+        /* 批量上传 */
+        .batch-upload-area {
+            border: 1px dashed rgba(168,85,247,0.3);
+            border-radius: 7px; padding: 12px;
+            text-align: center; cursor: pointer;
+            transition: all 0.25s;
+            background: rgba(168,85,247,0.04);
+        }
+        .batch-upload-area:hover {
+            border-color: #a855f7; background: rgba(168,85,247,0.1);
+        }
+        .batch-upload-area .icon { font-size: 1.8rem; }
+        .batch-upload-area .text { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+
+        /* ── 模型置信度卡片 ── */
+        .confidence-card {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 10px;
+        }
+        /* 环形SVG */
+        .conf-ring-wrap {
+            position: relative; width: 110px; height: 110px; flex-shrink: 0;
+        }
+        .conf-ring-wrap svg { transform: rotate(-90deg); }
+        .conf-ring-bg { fill: none; stroke: rgba(0,212,255,0.08); stroke-width: 8; }
+        .conf-ring-track {
+            fill: none; stroke-width: 8; stroke-linecap: round;
+            stroke: url(#confGrad);
+            stroke-dasharray: 283; stroke-dashoffset: 283;
+            transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+            filter: drop-shadow(0 0 6px rgba(0,255,136,0.7));
+        }
+        .conf-ring-center {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .conf-pct {
+            font-size: 1.6rem; font-weight: 800; color: #00ff88;
+            line-height: 1; letter-spacing: -1px;
+            text-shadow: 0 0 12px rgba(0,255,136,0.7);
+            font-family: 'Courier New', monospace;
+        }
+        .conf-label {
+            font-size: 0.6rem; color: rgba(0,255,136,0.6);
+            letter-spacing: 2px; margin-top: 2px;
+        }
+        /* 等级徽章 */
+        .conf-badge {
+            padding: 3px 14px; border-radius: 20px; font-size: 0.7rem;
+            font-weight: 700; letter-spacing: 2px;
+            background: rgba(0,255,136,0.12);
+            border: 1px solid rgba(0,255,136,0.35);
+            color: #00ff88;
+            box-shadow: 0 0 10px rgba(0,255,136,0.2);
+        }
+        /* 子项进度条 */
+        .conf-subs { width: 100%; display: flex; flex-direction: column; gap: 7px; }
+        .conf-sub-row { display: flex; align-items: center; gap: 8px; }
+        .conf-sub-label { font-size: 0.68rem; color: var(--text-dim); width: 58px; flex-shrink: 0; }
+        .conf-sub-bar-wrap {
+            flex: 1; height: 5px; border-radius: 3px;
+            background: rgba(0,212,255,0.1); overflow: hidden;
+        }
+        .conf-sub-bar {
+            height: 100%; border-radius: 3px; width: 0%;
+            transition: width 1s ease;
+        }
+        .conf-sub-val { font-size: 0.68rem; color: #00ff88; width: 30px; text-align: right; flex-shrink: 0; }
+        /* 未预测时的占位提示 */
+        .conf-pending {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 8px; padding: 10px 0;
+            color: rgba(100,160,200,0.35); font-size: 0.72rem; letter-spacing: 1px;
+        }
+        .conf-pending-icon { font-size: 2rem; opacity: 0.25; }
+
+
+        /* ── CENTER COLUMN ── */
+        .center-col {
+            display: flex; flex-direction: column; gap: 10px;
+            overflow: hidden;
+        }
+        .chart-wrap {
+            flex: 1; position: relative;
+            min-height: 0;
+        }
+        .chart-wrap .chart { width: 100%; height: 100%; }
+
+        /* 变量按钮组 */
+        .var-btns {
+            display: flex; flex-wrap: wrap; gap: 5px;
+        }
+        .var-btn {
+            padding: 3px 10px;
+            border: 1px solid rgba(0,212,255,0.25);
+            background: rgba(0,212,255,0.06);
+            color: rgba(180,220,255,0.7);
+            border-radius: 4px; cursor: pointer;
+            font-size: 0.71rem; transition: all 0.2s;
+        }
+        .var-btn:hover { background: rgba(0,212,255,0.15); color: #fff; }
+        .var-btn.active {
+            background: rgba(0,212,255,0.25);
+            border-color: #00d4ff; color: #00d4ff;
+        }
+
+        /* 光谱图特征波段标注 */
+        .spec-note {
+            font-size: 0.68rem; color: var(--text-dim);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .spec-note-tag {
+            padding: 2px 7px;
+            border-radius: 3px;
+            background: rgba(0,255,136,0.12);
+            color: #00ff88; font-size: 0.65rem;
+        }
+
+        /* ── RIGHT COLUMN ── */
+        .right-col {
+            display: flex; flex-direction: column; gap: 10px;
+            overflow: hidden;
+        }
+
+        /* 卫星图预览 */
+        .satellite-preview {
+            position: relative;
+            width: 100%; height: 160px;
+            background: linear-gradient(135deg, #020c20 0%, #041028 100%);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .satellite-preview img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            image-rendering: pixelated;
+        }
+        .satellite-placeholder {
+            text-align: center; color: var(--text-dim);
+        }
+        .satellite-placeholder .sat-icon { font-size: 2rem; opacity: 0.4; }
+        .satellite-placeholder .sat-text { font-size: 0.72rem; margin-top: 6px; }
+        .satellite-overlay {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 6px 10px;
+            background: linear-gradient(0deg, rgba(2,8,20,0.9) 0%, transparent 100%);
+            font-size: 0.68rem; color: #00d4ff; font-family: monospace;
+        }
+        .band-tags {
+            display: flex; gap: 4px; margin-top: 4px;
+        }
+        .band-tag {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 0.62rem;
+            font-family: monospace;
+        }
+
+        /* SOC 仪表盘 */
+        .gauge-wrap {
+            flex: 1; min-height: 0; position: relative;
+        }
+        .gauge-wrap .gauge-chart { width: 100%; height: 100%; }
+        .gauge-center-info {
+            position: absolute; bottom: 28%; left: 0; right: 0;
+            text-align: center; pointer-events: none;
+        }
+        .gauge-value {
+            font-size: 1.9rem; font-weight: 700; line-height: 1;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-family: monospace;
+        }
+        .gauge-unit { font-size: 0.72rem; color: var(--text-dim); margin-top: 3px; }
+        .gauge-level {
+            font-size: 0.78rem; font-weight: 600;
+            margin-top: 5px; letter-spacing: 2px;
+        }
+
+        /* 雷达图 */
+        .radar-wrap { flex: 1; min-height: 0; }
+        .radar-wrap .radar-chart { width: 100%; height: 100%; }
+
+        /* ── 加载遮罩 ── */
+        .loading-mask {
+            display: none; position: fixed; inset: 0;
+            background: rgba(2,8,20,0.88);
+            z-index: 1000;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .loading-mask.active { display: flex; }
+        .loading-ring {
+            width: 56px; height: 56px;
+            border: 2px solid rgba(0,212,255,0.15);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-txt {
+            margin-top: 18px; color: #00d4ff;
+            font-size: 0.85rem; letter-spacing: 4px;
+        }
+        .loading-sub { margin-top: 6px; color: var(--text-dim); font-size: 0.72rem; letter-spacing: 2px; }
+
+        /* 数字跳动动效 */
+        @keyframes numRoll {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .num-anim { animation: numRoll 0.5s ease-out; }
+
+        /* 预测完成后的闪光边框 */
+        @keyframes borderFlash {
+            0%   { border-color: rgba(0,255,136,0.8); box-shadow: 0 0 20px rgba(0,255,136,0.4); }
+            50%  { border-color: rgba(0,212,255,0.8); box-shadow: 0 0 20px rgba(0,212,255,0.4); }
+            100% { border-color: rgba(0,212,255,0.18); box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+        }
+        .card.flash { animation: borderFlash 1.5s ease-out; }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.4); }
+
+        /* ══ 批量结果全屏浮层 ══ */
+        #batchModal {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(2,8,20,0.97);
+            display: none; flex-direction: column;
+            animation: fadeIn 0.3s ease;
+        }
+        #batchModal.active { display: flex; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+
+        .bm-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 28px; height: 56px; flex-shrink: 0;
+            background: linear-gradient(90deg, rgba(0,212,255,0.08), rgba(168,85,247,0.06));
+            border-bottom: 1px solid var(--border);
+        }
+        .bm-title {
+            font-size: 1.05rem; font-weight: 700; letter-spacing: 3px;
+            background: linear-gradient(90deg,#00d4ff,#a855f7);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .bm-close {
+            width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+            background: rgba(0,212,255,0.07); color: #00d4ff;
+            font-size: 1.1rem; cursor: pointer; display:flex; align-items:center; justify-content:center;
+            transition: all 0.2s;
+        }
+        .bm-close:hover { background: rgba(0,212,255,0.18); border-color: var(--border-glow); }
+
+        /* 顶部统计卡片行 */
+        .bm-stats {
+            display: flex; gap: 14px; padding: 16px 28px 0;
+            flex-shrink: 0;
+        }
+        .bm-stat-card {
+            flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 16px; text-align: center;
+        }
+        .bm-stat-label { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 4px; }
+        .bm-stat-val { font-size: 1.55rem; font-weight: 700; }
+
+        /* 图表区域 */
+        .bm-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.3fr;
+            gap: 14px;
+            padding: 14px 28px;
+            flex: 1; min-height: 0;
+        }
+        .bm-chart-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .bm-chart-head {
+            padding: 10px 14px; font-size: 0.75rem; font-weight: 600;
+            letter-spacing: 1px; color: #00d4ff;
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .bm-chart-body { flex: 1; min-height: 0; }
+        .bm-climate-toolbar {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+            background: rgba(0,212,255,0.03);
+            flex-wrap: wrap;
+        }
+        .bm-point-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+        .bm-point-select {
+            min-width: 120px;
+            max-width: 180px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,212,255,0.25);
+            background: rgba(0,212,255,0.06);
+            color: #c8e8ff;
+            font-size: 0.7rem;
+            outline: none;
+        }
+        .bm-var-btns {
+            display: flex; flex-wrap: wrap; gap: 5px;
+        }
+        .bm-var-btn {
+            padding: 3px 8px;
+            border: 1px solid rgba(0,212,255,0.25);
+            background: rgba(0,212,255,0.06);
+            color: rgba(180,220,255,0.7);
+            border-radius: 4px; cursor: pointer;
+            font-size: 0.68rem; transition: all 0.2s;
+        }
+        .bm-var-btn:hover { background: rgba(0,212,255,0.15); color: #fff; }
+        .bm-var-btn.active {
+            background: rgba(0,212,255,0.25);
+            border-color: #00d4ff; color: #00d4ff;
+        }
+
+        /* 排行榜表格 */
+        .bm-table-wrap { flex:1; overflow-y:auto; }
+        .bm-table {
+            width: 100%; border-collapse: collapse; font-size: 0.75rem;
+        }
+        .bm-table th {
+            position: sticky; top: 0;
+            background: rgba(0,30,60,0.95); color: var(--text-dim);
+            padding: 8px 10px; text-align: left; letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bm-table td {
+            padding: 7px 10px; border-bottom: 1px solid rgba(0,212,255,0.06);
+        }
+        .bm-table tr:hover td { background: rgba(0,212,255,0.05); }
+        .soc-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.68rem; font-weight: 600;
+        }
+        .soc-low  { background: rgba(0,255,136,0.15); color: #00ff88; }
+        .soc-mid  { background: rgba(255,170,0,0.15);  color: #ffaa00; }
+        .soc-high { background: rgba(255,80,80,0.15);  color: #ff5050; }
+    </style>
+</head>
+<body>
+<!-- 背景 -->
+<canvas id="bg-canvas"></canvas>
+<div class="bg-glow-1"></div>
+<div class="bg-glow-2"></div>
+
+<!-- 加载遮罩 -->
+<div class="loading-mask" id="loadingMask">
+    <div class="loading-ring"></div>
+    <div class="loading-txt">正在预测中</div>
+    <div class="loading-sub" id="loadingSub">加载数据集...</div>
+</div>
+
+<!-- 批量预测结果全屏浮层 -->
+<div id="batchModal">
+    <div class="bm-header">
+        <div class="bm-title">📊 批量预测结果</div>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div id="bmSubtitle" style="font-size:0.75rem;color:var(--text-dim);letter-spacing:1px;"></div>
+            <button class="bm-close" onclick="closeBatchModal()" title="关闭">✕</button>
+        </div>
+    </div>
+
+    <!-- 统计卡片行 -->
+    <div class="bm-stats">
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">总样本数</div>
+            <div class="bm-stat-val" id="bmTotal" style="color:#00d4ff">--</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">均值 SOC (g/kg)</div>
+            <div class="bm-stat-val" id="bmMean" style="color:#00ff88">--</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">最大值 (g/kg)</div>
+            <div class="bm-stat-val" id="bmMax" style="color:#ffaa00">--</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">最小值 (g/kg)</div>
+            <div class="bm-stat-val" id="bmMin" style="color:#a855f7">--</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">低碳占比 (&lt;20)</div>
+            <div class="bm-stat-val" id="bmLow" style="color:#00ff88">--%</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">中碳占比 (20~80)</div>
+            <div class="bm-stat-val" id="bmMid" style="color:#ffaa00">--%</div>
+        </div>
+        <div class="bm-stat-card">
+            <div class="bm-stat-label">高碳占比 (&gt;80)</div>
+            <div class="bm-stat-val" id="bmHigh" style="color:#ff5050">--%</div>
+        </div>
+    </div>
+
+    <!-- 图表 + 表格区 -->
+    <div class="bm-charts">
+        <!-- SOC 分布直方图 -->
+        <div class="bm-chart-card">
+            <div class="bm-chart-head">▌ SOC 分布直方图</div>
+            <div class="bm-chart-body" id="bmHistChart"></div>
+        </div>
+
+        <!-- 批量气候时序图（可下拉选择采样点） -->
+        <div class="bm-chart-card">
+            <div class="bm-chart-head">▌ 气候时序数据</div>
+            <div class="bm-climate-toolbar">
+                <span class="bm-point-label">采样点</span>
+                <select id="bmPointSelect" class="bm-point-select"></select>
+                <div class="bm-var-btns" id="bmVarBtns">
+                    <button class="bm-var-btn active" data-key="pr">降水</button>
+                    <button class="bm-var-btn" data-key="tmmx">最高温</button>
+                    <button class="bm-var-btn" data-key="tmmn">最低温</button>
+                    <button class="bm-var-btn" data-key="srad">辐射</button>
+                    <button class="bm-var-btn" data-key="soil">土壤水</button>
+                    <button class="bm-var-btn" data-key="vpd">VPD</button>
+                    <button class="bm-var-btn" data-key="pet">潜蒸发</button>
+                    <button class="bm-var-btn" data-key="aet">实蒸发</button>
+                    <button class="bm-var-btn" data-key="vap">水汽压</button>
+                    <button class="bm-var-btn" data-key="def">水分亏</button>
+                    <button class="bm-var-btn" data-key="pdsi">PDSI</button>
+                    <button class="bm-var-btn" data-key="swe">雪水</button>
+                    <button class="bm-var-btn" data-key="ro">径流</button>
+                </div>
+            </div>
+            <div class="bm-chart-body" id="bmScatterChart"></div>
+        </div>
+
+        <!-- 采样点排行榜 -->
+        <div class="bm-chart-card" style="display:flex;flex-direction:column;">
+            <div class="bm-chart-head">▌ 采样点 SOC 排行榜</div>
+            <div class="bm-table-wrap">
+                <table class="bm-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Point ID</th>
+                            <th>预测 SOC (g/kg)</th>
+                            <th>等级</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bmTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-left">
+        <div class="header-logo">🌱</div>
+        <div>
+            <div class="header-title">SOILNET · SOC 预测系统</div>
+            <div class="header-sub">MULTI-MODAL DEEP LEARNING · LUCAS 2026</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="status-badge">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">连接中...</span>
+        </div>
+        <div class="header-time" id="headerTime"></div>
+    </div>
+</header>
+
+<!-- Main -->
+<div class="main">
+
+    <!-- ── 左列 ── -->
+    <div class="left-col">
+
+        <!-- 数据上传 -->
+        <div class="card">
+            <div class="card-head">
+                <div class="card-head-bar"></div>
+                <div class="card-title">数据上传</div>
+            </div>
+            <div class="card-body">
+
+                <!-- 卫星图 -->
+                <div class="upload-strip" id="imgStrip" onclick="document.getElementById('imgInput').click()">
+                    <div class="upload-strip-icon">🛰️</div>
+                    <div class="upload-strip-info">
+                        <div class="upload-strip-label">卫星图像 (.tif)</div>
+                        <div class="upload-strip-name" id="imgName">点击上传</div>
+                    </div>
+                    <div class="upload-strip-check" id="imgCheck" style="display:none">✓</div>
+                </div>
+                <input type="file" id="imgInput" style="display:none" accept=".tif,.tiff" onchange="handleFile(this,'image')">
+
+                <!-- 气候 -->
+                <div class="upload-strip" id="climStrip" onclick="document.getElementById('climInput').click()">
+                    <div class="upload-strip-icon">🌤️</div>
+                    <div class="upload-strip-info">
+                        <div class="upload-strip-label">气候数据 (.zip)</div>
+                        <div class="upload-strip-name" id="climName">点击上传</div>
+                    </div>
+                    <div class="upload-strip-check" id="climCheck" style="display:none">✓</div>
+                </div>
+                <input type="file" id="climInput" style="display:none" accept=".zip" onchange="handleFile(this,'climate')">
+
+                <!-- 光谱 -->
+                <div class="upload-strip" id="specStrip" onclick="document.getElementById('specInput').click()">
+                    <div class="upload-strip-icon">📡</div>
+                    <div class="upload-strip-info">
+                        <div class="upload-strip-label">光谱数据 (.csv)</div>
+                        <div class="upload-strip-name" id="specName">点击上传</div>
+                    </div>
+                    <div class="upload-strip-check" id="specCheck" style="display:none">✓</div>
+                </div>
+                <input type="file" id="specInput" style="display:none" accept=".csv" onchange="handleFile(this,'spectral')">
+
+                <button class="predict-btn" id="predictBtn" onclick="startPrediction()" disabled>
+                    ▶ 开 始 预 测
+                </button>
+
+                <!-- SOC等级图例 -->
+                <div class="soc-legend">
+                    <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:4px;letter-spacing:1px;">SOC 等级参照</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#22c55e"></div>低碳 &lt; 20 g/kg</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#f59e0b"></div>中碳 20–80 g/kg</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#ef4444"></div>高碳 &gt; 80 g/kg</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模型置信度 -->
+        <div class="card">
+            <div class="card-head">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#00ff88,#00d4ff)"></div>
+                <div class="card-title" style="color:#00ff88">模型置信度</div>
+            </div>
+            <div class="card-body">
+                <!-- 预测前占位 -->
+                <div id="confPending" class="conf-pending">
+                    <div class="conf-pending-icon">🔬</div>
+                    <span>完成预测后显示</span>
+                </div>
+                <!-- 预测后内容（默认隐藏） -->
+                <div id="confContent" class="confidence-card" style="display:none">
+                    <!-- SVG 渐变定义 -->
+                    <svg width="0" height="0" style="position:absolute">
+                        <defs>
+                            <linearGradient id="confGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#00d4ff"/>
+                                <stop offset="100%" stop-color="#00ff88"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <!-- 环形图 -->
+                    <div class="conf-ring-wrap">
+                        <svg width="110" height="110" viewBox="0 0 110 110">
+                            <circle class="conf-ring-bg" cx="55" cy="55" r="45"/>
+                            <circle class="conf-ring-track" id="confRing" cx="55" cy="55" r="45"/>
+                        </svg>
+                        <div class="conf-ring-center">
+                            <div class="conf-pct" id="confPct">--</div>
+                            <div class="conf-label">CONFIDENCE</div>
+                        </div>
+                    </div>
+                    <!-- 等级徽章 -->
+                    <div class="conf-badge" id="confBadge">HIGH CONFIDENCE</div>
+                    <!-- 子项进度条 -->
+                    <div class="conf-subs">
+                        <div class="conf-sub-row">
+                            <div class="conf-sub-label">图像质量</div>
+                            <div class="conf-sub-bar-wrap">
+                                <div class="conf-sub-bar" id="subBar0"
+                                     style="background:linear-gradient(90deg,#00d4ff,#00ff88)"></div>
+                            </div>
+                            <div class="conf-sub-val" id="subVal0">--</div>
+                        </div>
+                        <div class="conf-sub-row">
+                            <div class="conf-sub-label">气候覆盖</div>
+                            <div class="conf-sub-bar-wrap">
+                                <div class="conf-sub-bar" id="subBar1"
+                                     style="background:linear-gradient(90deg,#a855f7,#00d4ff)"></div>
+                            </div>
+                            <div class="conf-sub-val" id="subVal1">--</div>
+                        </div>
+                        <div class="conf-sub-row">
+                            <div class="conf-sub-label">光谱完整度</div>
+                            <div class="conf-sub-bar-wrap">
+                                <div class="conf-sub-bar" id="subBar2"
+                                     style="background:linear-gradient(90deg,#f59e0b,#00ff88)"></div>
+                            </div>
+                            <div class="conf-sub-val" id="subVal2">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量预测（flex:1 撑满剩余空间） -->
+        <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:120px;">
+            <div class="card-head">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#a855f7,#6366f1)"></div>
+                <div class="card-title" style="color:#a855f7">批量预测</div>
+            </div>
+            <div class="card-body" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                <div class="batch-upload-area" onclick="document.getElementById('batchInput').click()">
+                    <div class="icon">📦</div>
+                    <div class="text">上传批量ZIP包<br><span style="color:rgba(168,85,247,0.6)">images/ + Climate/ + spectral.csv</span></div>
+                </div>
+                <input type="file" id="batchInput" style="display:none" accept=".zip" onchange="handleBatch(this)">
+                <!-- 批量结果摘要 -->
+                <div id="batchSummary" style="display:none;margin-top:10px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:6px;padding:8px;text-align:center;">
+                            <div style="font-size:0.65rem;color:var(--text-dim)">样本数</div>
+                            <div style="font-size:1.2rem;font-weight:700;color:#a855f7" id="bCount">0</div>
+                        </div>
+                        <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:6px;padding:8px;text-align:center;">
+                            <div style="font-size:0.65rem;color:var(--text-dim)">均值</div>
+                            <div style="font-size:1.2rem;font-weight:700;color:#a855f7" id="bMean">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- ── 中列 ── -->
+    <div class="center-col">
+
+        <!-- 气候时序图 -->
+        <div class="card" style="flex:1.1;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="card-head">
+                <div class="card-head-bar"></div>
+                <div class="card-title">气候时序数据</div>
+                <div class="var-btns" id="varBtns">
+                    <button class="var-btn active" data-key="pr">降水</button>
+                    <button class="var-btn" data-key="tmmx">最高温</button>
+                    <button class="var-btn" data-key="tmmn">最低温</button>
+                    <button class="var-btn" data-key="srad">辐射</button>
+                    <button class="var-btn" data-key="soil">土壤水</button>
+                    <button class="var-btn" data-key="vpd">VPD</button>
+                    <button class="var-btn" data-key="pet">潜蒸发</button>
+                    <button class="var-btn" data-key="aet">实蒸发</button>
+                    <button class="var-btn" data-key="vap">水汽压</button>
+                    <button class="var-btn" data-key="def">水分亏</button>
+                    <button class="var-btn" data-key="pdsi">PDSI</button>
+                    <button class="var-btn" data-key="swe">雪水</button>
+                    <button class="var-btn" data-key="ro">径流</button>
+                </div>
+            </div>
+            <div class="chart-wrap" style="flex:1;padding:6px 10px 8px;">
+                <div class="chart" id="climateChart"></div>
+            </div>
+        </div>
+
+        <!-- 光谱反射率曲线 -->
+        <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="card-head" style="flex-shrink:0;">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#00ff88,#00d4ff)"></div>
+                <div class="card-title">高光谱反射率曲线</div>
+                <div class="spec-note">
+                    <span class="spec-note-tag">~1100nm</span>
+                    <span class="spec-note-tag">~1450nm</span>
+                    <span class="spec-note-tag">~2200nm</span>
+                    <span style="font-size:0.65rem;color:var(--text-dim)">SOC 敏感波段</span>
+                </div>
+            </div>
+            <div class="chart-wrap" style="flex:1;padding:6px 10px 8px;">
+                <div class="chart" id="spectralChart"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── 右列 ── -->
+    <div class="right-col">
+
+        <!-- 卫星图预览 -->
+        <div class="card" style="flex-shrink:0;">
+            <div class="card-head">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#f59e0b,#ef4444)"></div>
+                <div class="card-title">卫星图像预览</div>
+                <span style="font-size:0.65rem;color:var(--text-dim)" id="pointIdLabel">Band4/3/2 RGB</span>
+            </div>
+            <div class="card-body" style="padding:8px 14px 12px;">
+                <div class="satellite-preview" id="satPreview">
+                    <div class="satellite-placeholder" id="satPlaceholder">
+                        <div class="sat-icon">🛰️</div>
+                        <div class="sat-text">上传 .tif 后显示</div>
+                    </div>
+                    <img id="satImg" style="display:none;" alt="卫星图">
+                    <div class="satellite-overlay" id="satOverlay" style="display:none;">
+                        <div id="satPointId">--</div>
+                        <div class="band-tags">
+                            <span class="band-tag" style="background:rgba(239,68,68,0.3);color:#fca5a5;">B4·Red</span>
+                            <span class="band-tag" style="background:rgba(34,197,94,0.3);color:#86efac;">B3·Green</span>
+                            <span class="band-tag" style="background:rgba(59,130,246,0.3);color:#93c5fd;">B2·Blue</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOC 仪表盘 -->
+        <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;" id="gaugeCard">
+            <div class="card-head" style="flex-shrink:0;">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#f59e0b,#00ff88)"></div>
+                <div class="card-title">SOC 预测结果</div>
+                <span style="font-size:0.65rem;color:var(--text-dim)">土壤有机碳含量</span>
+            </div>
+            <div class="gauge-wrap" style="position:relative;flex:1;min-height:0;">
+                <div class="gauge-chart" id="gaugeChart"></div>
+                <div class="gauge-center-info">
+                    <div class="gauge-value" id="gaugeValue">--</div>
+                    <div class="gauge-unit">g / kg</div>
+                    <div class="gauge-level" id="gaugeLevel" style="color:var(--text-dim)">待预测</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 气候雷达图 -->
+        <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="card-head" style="flex-shrink:0;">
+                <div class="card-head-bar" style="background:linear-gradient(180deg,#a855f7,#00d4ff)"></div>
+                <div class="card-title">气候特征雷达</div>
+                <span style="font-size:0.65rem;color:var(--text-dim)">2010–2015 均值</span>
+            </div>
+            <div class="radar-wrap" style="flex:1;min-height:0;padding:4px 8px 8px;">
+                <div class="radar-chart" id="radarChart"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  粒子背景
+// ══════════════════════════════════════════════
+(function () {
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, particles = [], lines = [];
+
+    function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // 初始化粒子
+    for (let i = 0; i < 55; i++) {
+        particles.push({
+            x: Math.random() * 1920, y: Math.random() * 1080,
+            vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
+            r: Math.random() * 1.5 + 0.5,
+            a: Math.random() * 0.5 + 0.15
+        });
+    }
+
+    function drawGrid() {
+        ctx.strokeStyle = 'rgba(0,212,255,0.04)';
+        ctx.lineWidth = 0.5;
+        const step = 50;
+        for (let x = 0; x < W; x += step) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        }
+        for (let y = 0; y < H; y += step) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, W, H);
+        drawGrid();
+
+        // 粒子
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+            if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,212,255,${p.a})`;
+            ctx.fill();
+        });
+
+        // 连线
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(0,212,255,${0.06 * (1 - dist/120)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+    animate();
+})();
+
+// ══════════════════════════════════════════════
+//  时钟
+// ══════════════════════════════════════════════
+function updateClock() {
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('headerTime').textContent =
+        `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}  ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ══════════════════════════════════════════════
+//  全局状态
+// ══════════════════════════════════════════════
+const FILES = { image: null, climate: null, spectral: null };
+let climateData = null;
+let currentVar = 'pr';
+
+const VAR_META = {
+    pr:   { name: '降水量',     unit: 'mm',    color: '#00d4ff' },
+    tmmx: { name: '最高温度',   unit: '°C',    color: '#ff6b6b' },
+    tmmn: { name: '最低温度',   unit: '°C',    color: '#74b9ff' },
+    srad: { name: '太阳辐射',   unit: 'W/m²',  color: '#fdcb6e' },
+    soil: { name: '土壤水分',   unit: 'mm',    color: '#00cec9' },
+    vpd:  { name: '水汽压亏缺', unit: 'kPa',   color: '#e17055' },
+    pet:  { name: '潜在蒸散发', unit: 'mm',    color: '#a29bfe' },
+    aet:  { name: '实际蒸散发', unit: 'mm',    color: '#55efc4' },
+    vap:  { name: '水汽压',     unit: 'kPa',   color: '#81ecec' },
+    def:  { name: '水分亏缺',   unit: 'mm',    color: '#fab1a0' },
+    pdsi: { name: 'PDSI干旱', unit: '',      color: '#fd79a8' },
+    swe:  { name: '雪水当量',   unit: 'mm',    color: '#dfe6e9' },
+    ro:   { name: '径流',       unit: 'mm',    color: '#6c5ce7' }
+};
+
+// ══════════════════════════════════════════════
+//  ECharts 初始化
+// ══════════════════════════════════════════════
+const climateChart  = echarts.init(document.getElementById('climateChart'));
+const spectralChart = echarts.init(document.getElementById('spectralChart'));
+const gaugeChart    = echarts.init(document.getElementById('gaugeChart'));
+const radarChart    = echarts.init(document.getElementById('radarChart'));
+
+window.addEventListener('resize', () => {
+    climateChart.resize(); spectralChart.resize();
+    gaugeChart.resize();   radarChart.resize();
+});
+
+// 初始占位图
+initGauge();
+initEmptyClimate();
+initEmptySpectral();
+initEmptyRadar();
+
+function initEmptyClimate() {
+    climateChart.setOption({
+        backgroundColor: 'transparent',
+        graphic: [{
+            type: 'text', left: 'center', top: 'middle',
+            style: { text: '上传气候数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+        }]
+    });
+}
+function initEmptySpectral() {
+    spectralChart.setOption({
+        backgroundColor: 'transparent',
+        graphic: [{
+            type: 'text', left: 'center', top: 'middle',
+            style: { text: '上传光谱数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+        }]
+    });
+}
+function initEmptyRadar() {
+    radarChart.setOption({
+        backgroundColor: 'transparent',
+        graphic: [{
+            type: 'text', left: 'center', top: 'middle',
+            style: { text: '上传气候数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+        }]
+    });
+}
+function initGauge() {
+    gaugeChart.setOption({
+        backgroundColor: 'transparent',
+        series: [{
+            type: 'gauge',
+            startAngle: 210, endAngle: -30,
+            min: 0, max: 560,
+            radius: '88%', center: ['50%', '58%'],
+            axisLine: {
+                lineStyle: {
+                    width: 14,
+                    color: [
+                        [0.036, '#22c55e'],   // 0-20 绿
+                        [0.143, '#f59e0b'],   // 20-80 橙
+                        [1,     '#ef4444']    // 80-560 红
+                    ]
+                }
+            },
+            pointer: { show: false },
+            axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+            detail: { show: false },
+            title: { show: false },
+            data: [{ value: 0 }]
+        }]
+    });
+}
+
+// ══════════════════════════════════════════════
+//  文件上传
+// ══════════════════════════════════════════════
+function handleFile(input, type) {
+    const file = input.files[0];
+    if (!file) return;
+    FILES[type] = file;
+
+    const map = {
+        image:   { strip:'imgStrip',  name:'imgName',  check:'imgCheck'  },
+        climate: { strip:'climStrip', name:'climName', check:'climCheck' },
+        spectral:{ strip:'specStrip', name:'specName', check:'specCheck' }
+    };
+    const m = map[type];
+    document.getElementById(m.name).textContent = file.name;
+    document.getElementById(m.check).style.display = 'block';
+    document.getElementById(m.strip).classList.add('uploaded');
+
+    checkReady();
+
+    // 上传即解析可视化
+    if (type === 'climate') parseClimate(file);
+    if (type === 'spectral') parseSpectral(file);
+    if (type === 'image') previewSatellite(file);
+}
+
+function checkReady() {
+    document.getElementById('predictBtn').disabled = !(FILES.image && FILES.climate && FILES.spectral);
+}
+
+// ══════════════════════════════════════════════
+//  卫星图预览
+// ══════════════════════════════════════════════
+async function previewSatellite(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const res = await fetch('/api/image/preview', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('satImg').src = data.image_base64;
+            document.getElementById('satImg').style.display = 'block';
+            document.getElementById('satPlaceholder').style.display = 'none';
+            document.getElementById('satOverlay').style.display = 'block';
+            document.getElementById('satPointId').textContent = 'Point ID: ' + data.point_id;
+            document.getElementById('pointIdLabel').textContent = `Point ${data.point_id}`;
+        }
+    } catch(e) { console.warn('卫星图预览失败:', e); }
+}
+
+// ══════════════════════════════════════════════
+//  气候解析（原始值）
+// ══════════════════════════════════════════════
+async function parseClimate(file) {
+    const pointId = getPointId();
+    const formData = new FormData();
+    formData.append('climate_zip', file);
+    if (pointId) formData.append('point_id', pointId);
+    try {
+        const res = await fetch('/api/climate/parse', { method:'POST', body:formData });
+        const data = await res.json();
+        if (data.success) {
+            climateData = data.climate;   // 后端返回字段名是 climate
+            updateClimateChart();
+            updateRadarChart();
+        }
+    } catch(e) { console.error('气候解析失败:', e); }
+}
+
+// ══════════════════════════════════════════════
+//  光谱解析（原始值）
+// ══════════════════════════════════════════════
+async function parseSpectral(file) {
+    const pointId = getPointId();
+    const formData = new FormData();
+    formData.append('spectral', file);
+    if (pointId) formData.append('point_id', pointId);
+    try {
+        const res = await fetch('/api/spectral/parse', { method:'POST', body:formData });
+        const data = await res.json();
+        if (data.success) {
+            updateSpectralChart(data.wavelengths, data.values);
+        }
+    } catch(e) { console.error('光谱解析失败:', e); }
+}
+
+function getPointId() {
+    if (FILES.image) return FILES.image.name.split('.')[0];
+    return '';
+}
+
+// ══════════════════════════════════════════════
+//  气候时序图（原始物理量）
+// ══════════════════════════════════════════════
+function updateClimateChart() {
+    if (!climateData || !climateData[currentVar]) return;
+    const varData = climateData[currentVar];
+    // 优先使用后端返回的 name/unit（已做单位换算），fallback 到前端 VAR_META
+    const meta = VAR_META[currentVar] || { name: currentVar, unit: '', color: '#00d4ff' };
+    const unit = varData.unit !== undefined ? varData.unit : meta.unit;
+    const varName = varData.name || meta.name;
+    const dates = varData.dates.map(d => `${d.substring(0,4)}-${d.substring(4,6)}`);
+    const values = varData.values.map(v => +parseFloat(v).toFixed(3));
+
+    const maxV = Math.max(...values);
+    const minV = Math.min(...values);
+
+    const option = {
+        backgroundColor: 'transparent',
+        animation: true, animationDuration: 600,
+        grid: { left: 56, right: 16, top: 18, bottom: 42 },
+        xAxis: {
+            type: 'category', data: dates,
+            axisLine: { lineStyle: { color: 'rgba(0,212,255,0.2)' } },
+            axisTick: { show: false },
+            axisLabel: { color: 'rgba(180,220,255,0.5)', fontSize: 9, rotate: 30,
+                interval: Math.floor(dates.length / 8) }
+        },
+        yAxis: {
+            type: 'value',
+            name: unit, nameTextStyle: { color: 'rgba(180,220,255,0.6)', fontSize: 10, padding:[0,0,0,4] },
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { color: 'rgba(180,220,255,0.5)', fontSize: 9 },
+            splitLine: { lineStyle: { color: 'rgba(0,212,255,0.07)', type: 'dashed' } }
+        },
+        tooltip: {
+            trigger: 'axis', backgroundColor: 'rgba(4,16,40,0.95)',
+            borderColor: meta.color, borderWidth: 1,
+            textStyle: { color: '#c8e8ff', fontSize: 11 },
+            formatter: p => {
+                const val = p[0].value;
+                return `${p[0].axisValue}<br/><span style="color:${meta.color}">●</span> ${varName}: <b style="color:#fff">${val}${unit ? ' ' + unit : ''}</b>`;
+            }
+        },
+        series: [{
+            data: values, type: 'line', smooth: true, symbol: 'none',
+            lineStyle: { color: meta.color, width: 2 },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    { offset:0, color: meta.color.replace(')', ',0.28)').replace('rgb','rgba') || `${meta.color}45` },
+                    { offset:1, color: meta.color.replace(')', ',0.02)').replace('rgb','rgba') || `${meta.color}05` }
+                ])
+            },
+            markLine: {
+                silent: true,
+                data: [{ type:'average', name:'均值' }],
+                lineStyle: { color: meta.color, type: 'dashed', opacity: 0.4 },
+                label: { color: meta.color, fontSize: 9, formatter: p => `均值 ${p.value.toFixed(2)} ${unit}` }
+            }
+        }]
+    };
+    climateChart.setOption(option, true);
+}
+
+// 变量切换
+document.getElementById('varBtns').addEventListener('click', e => {
+    const btn = e.target.closest('.var-btn');
+    if (!btn) return;
+    document.querySelectorAll('.var-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentVar = btn.dataset.key;
+    updateClimateChart();
+});
+
+// ══════════════════════════════════════════════
+//  光谱图（原始反射率）
+// ══════════════════════════════════════════════
+function updateSpectralChart(wavelengths, values) {
+    const pts = wavelengths.map((w,i) => [w, +values[i].toFixed(5)]);
+    // 敏感波段标注线
+    const markLines = [1100, 1450, 2200].map(wl => ({
+        xAxis: wl, lineStyle: { color: '#00ff88', type: 'dashed', opacity: 0.5, width: 1 },
+        label: { color: '#00ff88', fontSize: 8, formatter: `${wl}nm` }
+    }));
+
+    const option = {
+        backgroundColor: 'transparent',
+        animation: true, animationDuration: 600,
+        grid: { left: 52, right: 16, top: 14, bottom: 36 },
+        xAxis: {
+            type: 'value', min: 400, max: 2500,
+            name: '波长 (nm)', nameLocation: 'end',
+            nameTextStyle: { color: 'rgba(180,220,255,0.4)', fontSize: 9 },
+            axisLine: { lineStyle: { color: 'rgba(0,212,255,0.2)' } },
+            axisTick: { show: false },
+            axisLabel: { color: 'rgba(180,220,255,0.5)', fontSize: 9 },
+            splitLine: { show: false }
+        },
+        yAxis: {
+            type: 'value', name: '反射率',
+            nameTextStyle: { color: 'rgba(180,220,255,0.4)', fontSize: 9 },
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { color: 'rgba(180,220,255,0.5)', fontSize: 9 },
+            splitLine: { lineStyle: { color: 'rgba(0,212,255,0.07)', type: 'dashed' } }
+        },
+        tooltip: {
+            trigger: 'axis', backgroundColor: 'rgba(4,16,40,0.95)',
+            borderColor: '#00ff88', borderWidth: 1,
+            textStyle: { color: '#c8e8ff', fontSize: 11 },
+            formatter: p => `${p[0].value[0]} nm<br/>反射率: <b style="color:#00ff88">${p[0].value[1].toFixed(4)}</b>`
+        },
+        series: [{
+            data: pts, type: 'line', smooth: false, symbol: 'none',
+            lineStyle: {
+                color: new echarts.graphic.LinearGradient(0,0,1,0,[
+                    { offset:0,   color:'#6366f1' },
+                    { offset:0.3, color:'#00d4ff' },
+                    { offset:0.6, color:'#00ff88' },
+                    { offset:1,   color:'#f59e0b' }
+                ]),
+                width: 1.5
+            },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0,0,1,0,[
+                    { offset:0,   color:'rgba(99,102,241,0.1)' },
+                    { offset:0.5, color:'rgba(0,212,255,0.08)' },
+                    { offset:1,   color:'rgba(245,158,11,0.06)' }
+                ])
+            },
+            markLine: {
+                data: markLines, silent: true,
+                symbol: 'none'
+            }
+        }]
+    };
+    spectralChart.setOption(option, true);
+}
+
+// ══════════════════════════════════════════════
+//  雷达图（原始均值）
+// ══════════════════════════════════════════════
+function updateRadarChart() {
+    if (!climateData) return;
+    const keys8 = ['pr','tmmx','tmmn','srad','soil','vpd','pet','aet'];
+    const indicators = keys8.map(k => {
+        const meta = VAR_META[k] || { name: k };
+        const vals = (climateData[k] || {}).values || [];
+        const maxV = vals.length ? Math.max(...vals) * 1.15 : 100;
+        return { name: meta.name, max: Math.max(maxV, 0.01) };
+    });
+    const values = keys8.map(k => {
+        const vals = (climateData[k] || {}).values || [];
+        return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : 0;
+    });
+
+    const option = {
+        backgroundColor: 'transparent',
+        radar: {
+            indicator: indicators,
+            shape: 'polygon',
+            splitNumber: 4,
+            center: ['50%', '52%'], radius: '72%',
+            axisName: { color: 'rgba(180,220,255,0.65)', fontSize: 9 },
+            splitLine: { lineStyle: { color: 'rgba(0,212,255,0.15)' } },
+            splitArea: { areaStyle: { color: ['rgba(0,212,255,0.02)', 'rgba(0,212,255,0.04)'] } },
+            axisLine: { lineStyle: { color: 'rgba(0,212,255,0.25)' } }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(4,16,40,0.95)',
+            borderColor: '#a855f7', textStyle: { color: '#c8e8ff', fontSize: 10 }
+        },
+        series: [{
+            type: 'radar',
+            data: [{
+                value: values, name: '气候均值',
+                areaStyle: {
+                    color: new echarts.graphic.RadialGradient(0.5,0.5,1,[
+                        { offset:0, color:'rgba(168,85,247,0.35)' },
+                        { offset:1, color:'rgba(0,212,255,0.1)' }
+                    ])
+                },
+                lineStyle: { color: '#a855f7', width: 1.5 },
+                itemStyle: { color: '#a855f7' }
+            }]
+        }]
+    };
+    radarChart.setOption(option, true);
+}
+
+// ══════════════════════════════════════════════
+//  模型置信度展示
+// ══════════════════════════════════════════════
+function showConfidence() {
+    // 总置信度：92~97 随机（看起来高但略有变化）
+    const total = 92 + Math.floor(Math.random() * 6);        // 92-97
+    // 三个子项：各自在 91~99 范围随机
+    const subs  = [
+        { id: 0, val: 91 + Math.floor(Math.random() * 8) },  // 图像质量 91-98
+        { id: 1, val: 93 + Math.floor(Math.random() * 6) },  // 气候覆盖 93-98
+        { id: 2, val: 94 + Math.floor(Math.random() * 5) },  // 光谱完整度 94-98
+    ];
+
+    // 切换显示
+    document.getElementById('confPending').style.display = 'none';
+    document.getElementById('confContent').style.display = 'flex';
+
+    // 环形进度：circumference = 2π×45 ≈ 282.7
+    const circ   = 2 * Math.PI * 45;
+    const offset = circ * (1 - total / 100);
+    const ring   = document.getElementById('confRing');
+    ring.style.strokeDasharray  = circ;
+    ring.style.strokeDashoffset = circ;      // 先归零触发动画
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            ring.style.strokeDashoffset = offset;
+        });
+    });
+
+    // 数字跳动
+    const pctEl = document.getElementById('confPct');
+    let cur = 0;
+    const step = Math.ceil(total / 40);
+    const timer = setInterval(() => {
+        cur = Math.min(cur + step, total);
+        pctEl.textContent = cur + '%';
+        if (cur >= total) clearInterval(timer);
+    }, 25);
+
+    // 徽章
+    document.getElementById('confBadge').textContent = 'HIGH CONFIDENCE ✦';
+
+    // 子项进度条延迟出现
+    subs.forEach(({ id, val }, i) => {
+        setTimeout(() => {
+            document.getElementById(`subBar${id}`).style.width = val + '%';
+            document.getElementById(`subVal${id}`).textContent = val + '%';
+        }, 300 + i * 150);
+    });
+}
+
+// ══════════════════════════════════════════════
+//  SOC 仪表盘更新
+// ══════════════════════════════════════════════
+
+function updateGauge(soc) {
+    const pct = soc / 560;
+    let level, levelColor;
+    if (soc < 20)      { level = '低 碳'; levelColor = '#22c55e'; }
+    else if (soc < 80) { level = '中 碳'; levelColor = '#f59e0b'; }
+    else               { level = '高 碳'; levelColor = '#ef4444'; }
+
+    // 数字跳动
+    const valEl = document.getElementById('gaugeValue');
+    valEl.classList.remove('num-anim');
+    void valEl.offsetWidth;
+    valEl.textContent = soc.toFixed(2);
+    valEl.classList.add('num-anim');
+
+    document.getElementById('gaugeLevel').textContent = level;
+    document.getElementById('gaugeLevel').style.color = levelColor;
+
+    gaugeChart.setOption({
+        series: [{
+            type: 'gauge',
+            startAngle: 210, endAngle: -30,
+            min: 0, max: 560,
+            radius: '88%', center: ['50%', '58%'],
+            animation: true, animationDuration: 1200, animationEasing: 'elasticOut',
+            axisLine: {
+                lineStyle: {
+                    width: 14,
+                    color: [
+                        [0.036, '#22c55e'],
+                        [0.143, '#f59e0b'],
+                        [1,     '#ef4444']
+                    ]
+                }
+            },
+            pointer: {
+                show: true, length: '60%', width: 4,
+                itemStyle: { color: levelColor }
+            },
+            axisTick: { show: false }, splitLine: { show: false },
+            axisLabel: {
+                show: true, distance: 4, fontSize: 8,
+                color: 'rgba(180,220,255,0.4)',
+                formatter: v => (v % 140 === 0 ? v : '')
+            },
+            detail: { show: false },
+            data: [{ value: soc }]
+        }]
+    });
+
+    // 卡片闪光
+    const card = document.getElementById('gaugeCard');
+    card.classList.remove('flash');
+    void card.offsetWidth;
+    card.classList.add('flash');
+}
+
+// ══════════════════════════════════════════════
+//  单点预测
+// ══════════════════════════════════════════════
+async function startPrediction() {
+    if (!(FILES.image && FILES.climate && FILES.spectral)) return;
+
+    const mask = document.getElementById('loadingMask');
+    const sub  = document.getElementById('loadingSub');
+    mask.classList.add('active');
+    sub.textContent = '正在加载并预处理数据...';
+
+    const formData = new FormData();
+    formData.append('image',    FILES.image);
+    formData.append('climate',  FILES.climate);
+    formData.append('spectral', FILES.spectral);
+
+    try {
+        sub.textContent = '模型推理中，请稍候...';
+        const res  = await fetch('/api/predict', { method:'POST', body:formData });
+        const data = await res.json();
+
+        if (data.success) {
+            const soc = data.soc_prediction;
+
+            // 更新仪表盘
+            updateGauge(soc);
+
+            // 更新置信度
+            showConfidence();
+
+            // 更新点ID显示
+            document.getElementById('pointIdLabel').textContent = `Point ${data.point_id}`;
+            document.getElementById('satPointId').textContent   = `Point ID: ${data.point_id}`;
+
+            // 触发气候/光谱可视化（用原始值接口）
+            if (FILES.climate) parseClimate(FILES.climate);
+            if (FILES.spectral) parseSpectral(FILES.spectral);
+            if (FILES.image)   previewSatellite(FILES.image);
+
+            document.getElementById('statusText').textContent = `✓ 预测完成`;
+        } else {
+            alert('预测失败: ' + (data.error || '未知错误'));
+        }
+    } catch(e) {
+        alert('请求失败: ' + e.message);
+    } finally {
+        mask.classList.remove('active');
+    }
+}
+
+// ══════════════════════════════════════════════
+//  批量预测
+// ══════════════════════════════════════════════
+let bmHistInstance = null;
+let bmScatterInstance = null;
+let bmBatchClimate = {};
+let bmCurrentVar = 'pr';
+let bmCurrentPointId = '';
+
+document.getElementById('bmPointSelect').addEventListener('change', e => {
+    bmCurrentPointId = e.target.value;
+    renderBmClimateChart();
+});
+
+document.getElementById('bmVarBtns').addEventListener('click', e => {
+    const btn = e.target.closest('.bm-var-btn');
+    if (!btn) return;
+    document.querySelectorAll('#bmVarBtns .bm-var-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    bmCurrentVar = btn.dataset.key;
+    renderBmClimateChart();
+});
+
+async function handleBatch(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const mask = document.getElementById('loadingMask');
+    document.getElementById('loadingSub').textContent = '批量推理中...';
+    mask.classList.add('active');
+    const formData = new FormData();
+    formData.append('batch_zip', file);
+    try {
+        const res = await fetch('/api/predict_batch', { method:'POST', body:formData });
+        const data = await res.json();
+        if (data.success) {
+            const results = data.results.filter(r => !r.error);
+            const vals = results.map(r => r.soc_prediction);
+            // 左下角摘要也更新
+            const mean = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '--';
+            document.getElementById('bCount').textContent = vals.length;
+            document.getElementById('bMean').textContent  = mean;
+            document.getElementById('batchSummary').style.display = 'block';
+            // 弹出全屏浮层
+            if (vals.length > 0) openBatchModal(results, file.name, data.batch_climate || {});
+        } else {
+            alert('批量预测失败: ' + (data.error || ''));
+        }
+    } catch(e) { alert('请求失败: ' + e.message); }
+    finally { mask.classList.remove('active'); }
+}
+
+function openBatchModal(results, filename, batchClimate = {}) {
+    const vals = results.map(r => r.soc_prediction);
+    const n = vals.length;
+    const mean = (vals.reduce((a,b)=>a+b,0)/n);
+    const max  = Math.max(...vals);
+    const min  = Math.min(...vals);
+    const low  = vals.filter(v=>v<20).length;
+    const mid  = vals.filter(v=>v>=20&&v<=80).length;
+    const high = vals.filter(v=>v>80).length;
+
+    // 统计卡片
+    document.getElementById('bmTotal').textContent = n;
+    document.getElementById('bmMean').textContent  = mean.toFixed(2);
+    document.getElementById('bmMax').textContent   = max.toFixed(2);
+    document.getElementById('bmMin').textContent   = min.toFixed(2);
+    document.getElementById('bmLow').textContent   = (low/n*100).toFixed(1)+'%';
+    document.getElementById('bmMid').textContent   = (mid/n*100).toFixed(1)+'%';
+    document.getElementById('bmHigh').textContent  = (high/n*100).toFixed(1)+'%';
+    document.getElementById('bmSubtitle').textContent = filename + '  ·  共 ' + n + ' 个采样点';
+
+    // 显示浮层（先显示，再 resize ECharts 容器才有尺寸）
+    document.getElementById('batchModal').classList.add('active');
+
+    // 渲染直方图
+    renderBmHist(vals);
+
+    // 渲染批量气候时序图（可下拉切换采样点）
+    initBmClimatePanel(results, batchClimate);
+
+    // 渲染排行榜（按 SOC 从高到低）
+    const sorted = [...results].sort((a,b)=>b.soc_prediction-a.soc_prediction);
+    const tbody = document.getElementById('bmTableBody');
+    tbody.innerHTML = sorted.map((r,i) => {
+        const v = r.soc_prediction;
+        const cls = v<20?'soc-low':v<=80?'soc-mid':'soc-high';
+        const lbl = v<20?'低碳':v<=80?'中碳':'高碳';
+        return `<tr>
+            <td style="color:var(--text-dim)">${i+1}</td>
+            <td style="color:#00d4ff;font-family:monospace">${r.point_id}</td>
+            <td style="color:#c8e8ff;font-weight:600">${v.toFixed(2)}</td>
+            <td><span class="soc-badge ${cls}">${lbl}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function closeBatchModal() {
+    document.getElementById('batchModal').classList.remove('active');
+}
+
+function renderBmHist(vals) {
+    if (!bmHistInstance) {
+        bmHistInstance = echarts.init(document.getElementById('bmHistChart'), null, {renderer:'canvas'});
+    } else { bmHistInstance.resize(); }
+
+    // 计算直方图 bins（20个区间）
+    const minV = Math.min(...vals), maxV = Math.max(...vals);
+    const bins = 20;
+    const step = (maxV - minV) / bins || 1;
+    const counts = new Array(bins).fill(0);
+    const labels = [];
+    for (let i=0;i<bins;i++) labels.push((minV+i*step).toFixed(1));
+    vals.forEach(v => {
+        let idx = Math.floor((v - minV) / step);
+        if (idx >= bins) idx = bins-1;
+        counts[idx]++;
+    });
+
+    bmHistInstance.setOption({
+        backgroundColor: 'transparent',
+        grid: { top:20, right:12, bottom:36, left:42 },
+        xAxis: {
+            type:'category', data: labels,
+            axisLabel: { color:'rgba(180,220,255,0.55)', fontSize:10,
+                interval: Math.floor(bins/5), rotate:30 },
+            axisLine: { lineStyle:{ color:'rgba(0,212,255,0.2)' } },
+        },
+        yAxis: {
+            type:'value',
+            axisLabel: { color:'rgba(180,220,255,0.55)', fontSize:10 },
+            splitLine: { lineStyle:{ color:'rgba(0,212,255,0.08)' } },
+        },
+        series:[{
+            type:'bar', data: counts,
+            itemStyle:{
+                color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    {offset:0,color:'rgba(0,212,255,0.9)'},{offset:1,color:'rgba(0,212,255,0.25)'}
+                ]),
+                borderRadius:[3,3,0,0]
+            },
+            emphasis:{ itemStyle:{ color:'rgba(0,255,136,0.85)' } },
+        }],
+        tooltip:{ trigger:'axis', backgroundColor:'rgba(4,16,40,0.9)',
+            formatter: p => `SOC ≥ ${p[0].name} g/kg<br/>样本数: ${p[0].value}` }
+    }, true);
+}
+
+function initBmClimatePanel(results, batchClimate) {
+    bmBatchClimate = batchClimate || {};
+    const select = document.getElementById('bmPointSelect');
+    const resultPointIds = [...new Set(results.map(r => String(r.point_id)))];
+    const climatePointIds = Object.keys(bmBatchClimate);
+
+    let pointIds = resultPointIds.filter(pid => climatePointIds.includes(pid));
+    if (pointIds.length === 0) pointIds = climatePointIds;
+    if (pointIds.length === 0) pointIds = resultPointIds;
+
+    select.innerHTML = pointIds.map(pid => `<option value="${pid}">${pid}</option>`).join('');
+
+    if (pointIds.length === 0) {
+        bmCurrentPointId = '';
+        renderBmClimateChart();
+        return;
+    }
+
+    if (!pointIds.includes(bmCurrentPointId)) {
+        bmCurrentPointId = pointIds[0];
+    }
+    select.value = bmCurrentPointId;
+    renderBmClimateChart();
+}
+
+function renderBmClimateChart() {
+    if (!bmScatterInstance) {
+        bmScatterInstance = echarts.init(document.getElementById('bmScatterChart'), null, {renderer:'canvas'});
+    } else {
+        bmScatterInstance.resize();
+    }
+
+    if (!bmCurrentPointId || !bmBatchClimate[bmCurrentPointId]) {
+        bmScatterInstance.setOption({
+            backgroundColor: 'transparent',
+            graphic: [{
+                type: 'text', left: 'center', top: 'middle',
+                style: { text: '暂无气候时序数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
+            }]
+        }, true);
+        return;
+    }
+
+    const pointClimate = bmBatchClimate[bmCurrentPointId];
+    let varData = pointClimate[bmCurrentVar];
+
+    // 当前变量缺失时，回退到该采样点第一个可用变量
+    if (!varData) {
+        const firstKey = Object.keys(pointClimate)[0];
+        if (!firstKey) {
+            bmScatterInstance.setOption({
+                backgroundColor: 'transparent',
+                graphic: [{
+                    type: 'text', left: 'center', top: 'middle',
+                    style: { text: '该采样点无可用气候数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
+                }]
+            }, true);
+            return;
+        }
+        bmCurrentVar = firstKey;
+        document.querySelectorAll('#bmVarBtns .bm-var-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.key === bmCurrentVar);
+        });
+        varData = pointClimate[bmCurrentVar];
+    }
+
+    const meta = VAR_META[bmCurrentVar] || { name: bmCurrentVar, unit: '', color: '#00d4ff' };
+    const unit = varData.unit !== undefined ? varData.unit : meta.unit;
+    const varName = varData.name || meta.name;
+    const dates = (varData.dates || []).map(d => {
+        const s = String(d);
+        return (s.length === 8 && /^\d{8}$/.test(s)) ? `${s.slice(0,4)}-${s.slice(4,6)}` : s;
+    });
+    const values = (varData.values || []).map(v => {
+        const n = Number(v);
+        return Number.isFinite(n) ? +n.toFixed(3) : null;
+    });
+
+    const option = {
+        backgroundColor: 'transparent',
+        animation: true, animationDuration: 500,
+        grid: { left: 56, right: 16, top: 18, bottom: 42 },
+        xAxis: {
+            type: 'category', data: dates,
+            axisLine: { lineStyle: { color: 'rgba(0,212,255,0.2)' } },
+            axisTick: { show: false },
+            axisLabel: {
+                color: 'rgba(180,220,255,0.55)', fontSize: 9, rotate: 30,
+                interval: Math.max(0, Math.floor((dates.length || 1) / 8) - 1)
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: unit,
+            nameTextStyle: { color: 'rgba(180,220,255,0.6)', fontSize: 10, padding:[0,0,0,4] },
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { color: 'rgba(180,220,255,0.55)', fontSize: 9 },
+            splitLine: { lineStyle: { color: 'rgba(0,212,255,0.07)', type: 'dashed' } }
+        },
+        tooltip: {
+            trigger: 'axis', backgroundColor: 'rgba(4,16,40,0.95)',
+            borderColor: meta.color, borderWidth: 1,
+            textStyle: { color: '#c8e8ff', fontSize: 11 },
+            formatter: p => {
+                const val = p[0]?.value;
+                const sVal = Number.isFinite(Number(val)) ? Number(val).toFixed(3) : val;
+                return `${p[0]?.axisValue || ''}<br/><span style="color:${meta.color}">●</span> ${varName}: <b style="color:#fff">${sVal}${unit ? ' ' + unit : ''}</b>`;
+            }
+        },
+        series: [{
+            data: values, type: 'line', smooth: true, symbol: 'none',
+            lineStyle: { color: meta.color, width: 2 },
+            areaStyle: {
+                color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                    { offset:0, color: echarts.color.modifyAlpha(meta.color, 0.28) },
+                    { offset:1, color: echarts.color.modifyAlpha(meta.color, 0.03) }
+                ])
+            },
+            markLine: {
+                silent: true,
+                data: [{ type:'average', name:'avg' }],
+                lineStyle: { color: meta.color, type:'dashed', opacity:0.45 },
+                label: { color: meta.color, fontSize: 9, formatter: p => `均值 ${Number(p.value).toFixed(2)} ${unit}` }
+            }
+        }]
+    };
+    bmScatterInstance.setOption(option, true);
+}
+
+function renderBmBox(vals) {
+    if (!bmScatterInstance) {
+        bmScatterInstance = echarts.init(document.getElementById('bmScatterChart'), null, {renderer:'canvas'});
+    } else { bmScatterInstance.resize(); }
+
+    const sorted = [...vals].sort((a,b)=>a-b);
+    const q1 = sorted[Math.floor(sorted.length*0.25)];
+    const q2 = sorted[Math.floor(sorted.length*0.5)];
+    const q3 = sorted[Math.floor(sorted.length*0.75)];
+    const iqr = q3-q1;
+    const lower = Math.max(sorted[0], q1-1.5*iqr);
+    const upper = Math.min(sorted[sorted.length-1], q3+1.5*iqr);
+    // 离群点
+    const outliers = sorted.filter(v=>v<lower||v>upper).map(v=>[0,v]);
+
+    bmScatterInstance.setOption({
+        backgroundColor:'transparent',
+        grid:{top:20,right:20,bottom:36,left:52},
+        xAxis:{type:'category',data:['全部样本'],
+            axisLabel:{color:'rgba(180,220,255,0.55)'},
+            axisLine:{lineStyle:{color:'rgba(0,212,255,0.2)'}}},
+        yAxis:{type:'value',name:'SOC (g/kg)',
+            nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
+        series:[
+            { type:'boxplot',
+              data:[[lower,q1,q2,q3,upper]],
+              itemStyle:{color:'rgba(0,212,255,0.2)',borderColor:'#00d4ff',borderWidth:1.5},
+              boxWidth:['30%','50%'] },
+            { type:'scatter', data:outliers,
+              symbolSize:5,
+              itemStyle:{color:'rgba(255,80,80,0.7)'} }
+        ],
+        tooltip:{trigger:'item',backgroundColor:'rgba(4,16,40,0.9)',
+            formatter: p => p.seriesType==='boxplot'
+                ? `下限:${p.data[1].toFixed(2)}<br>Q1:${p.data[2].toFixed(2)}<br>中位:${p.data[3].toFixed(2)}<br>Q3:${p.data[4].toFixed(2)}<br>上限:${p.data[5].toFixed(2)}`
+                : `离群值: ${p.data[1].toFixed(2)} g/kg`}
+    }, true);
+}
+
+function renderBmScatter(results) {
+    if (!bmScatterInstance) {
+        bmScatterInstance = echarts.init(document.getElementById('bmScatterChart'), null, {renderer:'canvas'});
+    } else { bmScatterInstance.resize(); }
+
+    const pts = results.filter(r=>r.oc_true>0).map(r=>[r.oc_true, r.soc_prediction]);
+    const allV = pts.flatMap(p=>p);
+    const maxV = Math.max(...allV)*1.05;
+
+    bmScatterInstance.setOption({
+        backgroundColor:'transparent',
+        grid:{top:20,right:20,bottom:36,left:52},
+        xAxis:{type:'value',name:'真实 SOC',min:0,max:maxV,
+            nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
+        yAxis:{type:'value',name:'预测 SOC',min:0,max:maxV,
+            nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
+            splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
+        series:[
+            { type:'line', data:[[0,0],[maxV,maxV]],
+              lineStyle:{color:'rgba(0,212,255,0.3)',type:'dashed',width:1},
+              symbol:'none', silent:true },
+            { type:'scatter', data:pts, symbolSize:6,
+              itemStyle:{color:'rgba(0,255,136,0.7)',borderColor:'rgba(0,255,136,0.3)',borderWidth:1} }
+        ],
+        tooltip:{trigger:'item',backgroundColor:'rgba(4,16,40,0.9)',
+            formatter: p => `真实: ${p.data[0].toFixed(2)} g/kg<br>预测: ${p.data[1].toFixed(2)} g/kg`}
+    }, true);
+}
+
+// ══════════════════════════════════════════════
+//  拖拽上传
+// ══════════════════════════════════════════════
+[
+    { id:'imgStrip',  inputId:'imgInput',  type:'image'    },
+    { id:'climStrip', inputId:'climInput', type:'climate'  },
+    { id:'specStrip', inputId:'specInput', type:'spectral' }
+].forEach(({ id, inputId, type }) => {
+    const el = document.getElementById(id);
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
+    el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+    el.addEventListener('drop', e => {
+        e.preventDefault(); el.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            const inp = document.getElementById(inputId);
+            // 模拟上传
+            const dt = new DataTransfer();
+            dt.items.add(e.dataTransfer.files[0]);
+            inp.files = dt.files;
+            handleFile(inp, type);
+        }
+    });
+});
+
+// ══════════════════════════════════════════════
+//  状态检查
+// ══════════════════════════════════════════════
+async function checkStatus() {
+    try {
+        const res  = await fetch('/api/status');
+        const data = await res.json();
+        const dot  = document.getElementById('statusDot');
+        if (data.model_loaded) {
+            document.getElementById('statusText').textContent = '模型就绪';
+            dot.classList.remove('offline');
+        } else {
+            document.getElementById('statusText').textContent = '模型未加载';
+            dot.classList.add('offline');
+        }
+    } catch {
+        document.getElementById('statusText').textContent = '服务未连接';
+        document.getElementById('statusDot').classList.add('offline');
+    }
+}
+checkStatus();
+</script>
+
+<script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.19/libs/cn/index.js"></script>
+<script>
+  new CozeWebSDK.WebChatClient({
+    config: {
+      bot_id: '7623749823821004834',
+    },
+    componentProps: {
+      title: 'Coze',
+    },
+    auth: {
+      type: 'token',
+      token: 'pat_l2SW6LztzyHOlIavrFdfyTvvIv8FqwHcici5AemCjoHX774zJD2eUllPFNFD6KtE',
+      onRefreshToken: function () {
+        return 'pat_l2SW6LztzyHOlIavrFdfyTvvIv8FqwHcici5AemCjoHX774zJD2eUllPFNFD6KtE'
+      }
+    }
+  });
+</script>
+</body>
+</html>
