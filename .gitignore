@@ -35,6 +35,8 @@ dataset/simclr_past/
 dataset/simclr_RaCA/
 dataset/shapefiles/
 
+tmp_write_test.txt
+
 dataset/*.zip
 dataset/*.tif
 dataset/lucas2015corr_use.csv

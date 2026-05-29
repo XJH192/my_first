@@ -1,8 +1,4 @@
-"""
-SoilNet SOC 预测可视化大屏后端
-支持单点/批量预测，数据解析，模型推理
-使用 SNDatasetCorr 确保训练和推理数据处理一致
-"""
+
 from torchvision import transforms
 import os
 import sys

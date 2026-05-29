@@ -1,0 +1,5 @@
+﻿D:\机器人与人工智能大赛材料\材料\SSL-SoilNet_A_Hybrid_Transformer-Based_Framework_With_Self-Supervised_Learning_for_Large-Scale_Soil_Organic_Carbon_Prediction.pdf
+D:\机器人与人工智能大赛材料\材料\__主题__：深度学习在地球科学中的应用，特别是在数字土壤制图中，对比学习在土壤属性估算中的创新应用及新型混合网络 SSL-SoilNet 的构建与实验分析.docx
+D:\机器人与人工智能大赛材料\材料\商业计划书_20260415102529.docx
+D:\机器人与人工智能大赛材料\材料\土壤碳监测近红外光谱模型转移项目创业计划书.docx
+D:\机器人与人工智能大赛材料\材料\挑战杯-沃土知碳-李行.zip
