@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SoilNet · 土壤有机碳智能预测系统</title>
+    <title>冠影碳图 · 果园碳汇可视化监测系统</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -886,14 +886,14 @@
 <!-- 加载遮罩 -->
 <div class="loading-mask" id="loadingMask">
     <div class="loading-ring"></div>
-    <div class="loading-txt">正在预测中</div>
-    <div class="loading-sub" id="loadingSub">加载数据集...</div>
+    <div class="loading-txt">正在评估中</div>
+    <div class="loading-sub" id="loadingSub">加载果园监测数据...</div>
 </div>
 
-<!-- 批量预测结果全屏浮层 -->
+<!-- 批量果园碳汇评估结果全屏浮层 -->
 <div id="batchModal">
     <div class="bm-header">
-        <div class="bm-title">📊 批量预测结果</div>
+        <div class="bm-title">📊 批量果园碳汇评估结果</div>
         <div style="display:flex;align-items:center;gap:14px;">
             <div id="bmSubtitle" style="font-size:0.75rem;color:var(--text-dim);letter-spacing:1px;"></div>
             <button class="bm-close" onclick="closeBatchModal()" title="关闭">✕</button>
@@ -903,55 +903,55 @@
     <!-- 统计卡片行 -->
     <div class="bm-stats">
         <div class="bm-stat-card">
-            <div class="bm-stat-label">总样本数</div>
+            <div class="bm-stat-label">总地块数</div>
             <div class="bm-stat-val" id="bmTotal" style="color:#00d4ff">--</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">均值 SOC (g/kg)</div>
+            <div class="bm-stat-label">平均碳汇量 (tCO₂e/ha)</div>
             <div class="bm-stat-val" id="bmMean" style="color:#00ff88">--</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">最大值 (g/kg)</div>
+            <div class="bm-stat-label">最高碳汇量 (tCO₂e/ha)</div>
             <div class="bm-stat-val" id="bmMax" style="color:#ffaa00">--</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">最小值 (g/kg)</div>
+            <div class="bm-stat-label">最低碳汇量 (tCO₂e/ha)</div>
             <div class="bm-stat-val" id="bmMin" style="color:#a855f7">--</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">低碳占比 (&lt;20)</div>
+            <div class="bm-stat-label">低汇占比 (&lt;20)</div>
             <div class="bm-stat-val" id="bmLow" style="color:#00ff88">--%</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">中碳占比 (20~80)</div>
+            <div class="bm-stat-label">中汇占比 (20~80)</div>
             <div class="bm-stat-val" id="bmMid" style="color:#ffaa00">--%</div>
         </div>
         <div class="bm-stat-card">
-            <div class="bm-stat-label">高碳占比 (&gt;80)</div>
+            <div class="bm-stat-label">高汇占比 (&gt;80)</div>
             <div class="bm-stat-val" id="bmHigh" style="color:#ff5050">--%</div>
         </div>
     </div>
 
     <!-- 图表 + 表格区 -->
     <div class="bm-charts">
-        <!-- SOC 分布直方图 -->
+        <!-- 碳汇量分布直方图 -->
         <div class="bm-chart-card">
-            <div class="bm-chart-head">▌ SOC 分布直方图</div>
+            <div class="bm-chart-head">▌ 果园碳汇量分布</div>
             <div class="bm-chart-body" id="bmHistChart"></div>
         </div>
 
-        <!-- 批量气候时序图（可下拉选择采样点） -->
+        <!-- 批量气候时序图（可下拉选择果园地块） -->
         <div class="bm-chart-card">
-            <div class="bm-chart-head">▌ 气候时序数据</div>
+            <div class="bm-chart-head">▌ 碳汇环境驱动时序</div>
             <div class="bm-climate-toolbar">
-                <span class="bm-point-label">采样点</span>
+                <span class="bm-point-label">果园地块</span>
                 <select id="bmPointSelect" class="bm-point-select"></select>
                 <div class="bm-var-btns" id="bmVarBtns">
                     <button class="bm-var-btn active" data-key="pr">降水</button>
                     <button class="bm-var-btn" data-key="tmmx">最高温</button>
                     <button class="bm-var-btn" data-key="tmmn">最低温</button>
                     <button class="bm-var-btn" data-key="srad">辐射</button>
-                    <button class="bm-var-btn" data-key="soil">土壤水</button>
+                    <button class="bm-var-btn" data-key="soil">水分</button>
                     <button class="bm-var-btn" data-key="vpd">VPD</button>
                     <button class="bm-var-btn" data-key="pet">潜蒸发</button>
                     <button class="bm-var-btn" data-key="aet">实蒸发</button>
@@ -965,16 +965,16 @@
             <div class="bm-chart-body" id="bmScatterChart"></div>
         </div>
 
-        <!-- 采样点排行榜 -->
+        <!-- 果园地块排行榜 -->
         <div class="bm-chart-card" style="display:flex;flex-direction:column;">
-            <div class="bm-chart-head">▌ 采样点 SOC 排行榜</div>
+            <div class="bm-chart-head">▌ 果园地块碳汇排行榜</div>
             <div class="bm-table-wrap">
                 <table class="bm-table">
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Point ID</th>
-                            <th>预测 SOC (g/kg)</th>
+                            <th>Plot ID</th>
+                            <th>评估碳汇量 (tCO₂e/ha)</th>
                             <th>等级</th>
                         </tr>
                     </thead>
@@ -990,8 +990,8 @@
     <div class="header-left">
         <div class="header-logo">🌱</div>
         <div>
-            <div class="header-title">SOILNET · SOC 预测系统</div>
-            <div class="header-sub">MULTI-MODAL DEEP LEARNING · LUCAS 2026</div>
+            <div class="header-title">冠影碳图 · 果树碳汇监测系统</div>
+            <div class="header-sub">ORCHARD CARBON SINK MONITORING · RURAL REVITALIZATION</div>
         </div>
     </div>
     <div class="header-right">
@@ -1013,37 +1013,37 @@
         <div class="card">
             <div class="card-head">
                 <div class="card-head-bar"></div>
-                <div class="card-title">数据上传</div>
+                <div class="card-title">果园监测数据上传</div>
             </div>
             <div class="card-body">
 
-                <!-- 卫星图 -->
+                <!-- 果园遥感图 -->
                 <div class="upload-strip" id="imgStrip" onclick="document.getElementById('imgInput').click()">
                     <div class="upload-strip-icon">🛰️</div>
                     <div class="upload-strip-info">
-                        <div class="upload-strip-label">卫星图像 (.tif)</div>
+                        <div class="upload-strip-label">果园遥感影像 (.tif)</div>
                         <div class="upload-strip-name" id="imgName">点击上传</div>
                     </div>
                     <div class="upload-strip-check" id="imgCheck" style="display:none">✓</div>
                 </div>
                 <input type="file" id="imgInput" style="display:none" accept=".tif,.tiff" onchange="handleFile(this,'image')">
 
-                <!-- 气候 -->
+                <!-- 气候驱动 -->
                 <div class="upload-strip" id="climStrip" onclick="document.getElementById('climInput').click()">
                     <div class="upload-strip-icon">🌤️</div>
                     <div class="upload-strip-info">
-                        <div class="upload-strip-label">气候数据 (.zip)</div>
+                        <div class="upload-strip-label">气候驱动数据 (.zip)</div>
                         <div class="upload-strip-name" id="climName">点击上传</div>
                     </div>
                     <div class="upload-strip-check" id="climCheck" style="display:none">✓</div>
                 </div>
                 <input type="file" id="climInput" style="display:none" accept=".zip" onchange="handleFile(this,'climate')">
 
-                <!-- 光谱 -->
+                <!-- 冠层光谱 -->
                 <div class="upload-strip" id="specStrip" onclick="document.getElementById('specInput').click()">
                     <div class="upload-strip-icon">📡</div>
                     <div class="upload-strip-info">
-                        <div class="upload-strip-label">光谱数据 (.csv)</div>
+                        <div class="upload-strip-label">冠层光谱数据 (.csv)</div>
                         <div class="upload-strip-name" id="specName">点击上传</div>
                     </div>
                     <div class="upload-strip-check" id="specCheck" style="display:none">✓</div>
@@ -1051,15 +1051,15 @@
                 <input type="file" id="specInput" style="display:none" accept=".csv" onchange="handleFile(this,'spectral')">
 
                 <button class="predict-btn" id="predictBtn" onclick="startPrediction()" disabled>
-                    ▶ 开 始 预 测
+                    ▶ 开 始 评 估
                 </button>
 
-                <!-- SOC等级图例 -->
+                <!-- 碳汇等级图例 -->
                 <div class="soc-legend">
-                    <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:4px;letter-spacing:1px;">SOC 等级参照</div>
-                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#22c55e"></div>低碳 &lt; 20 g/kg</div>
-                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#f59e0b"></div>中碳 20–80 g/kg</div>
-                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#ef4444"></div>高碳 &gt; 80 g/kg</div>
+                    <div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:4px;letter-spacing:1px;">碳汇等级参照</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#22c55e"></div>低汇 &lt; 20 tCO₂e/ha</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#f59e0b"></div>中汇 20–80 tCO₂e/ha</div>
+                    <div class="soc-legend-item"><div class="soc-legend-dot" style="background:#ef4444"></div>高汇 &gt; 80 tCO₂e/ha</div>
                 </div>
             </div>
         </div>
@@ -1068,13 +1068,13 @@
         <div class="card">
             <div class="card-head">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#00ff88,#00d4ff)"></div>
-                <div class="card-title" style="color:#00ff88">模型置信度</div>
+                <div class="card-title" style="color:#00ff88">碳汇模型置信度</div>
             </div>
             <div class="card-body">
                 <!-- 预测前占位 -->
                 <div id="confPending" class="conf-pending">
                     <div class="conf-pending-icon">🔬</div>
-                    <span>完成预测后显示</span>
+                    <span>完成评估后显示</span>
                 </div>
                 <!-- 预测后内容（默认隐藏） -->
                 <div id="confContent" class="confidence-card" style="display:none">
@@ -1095,15 +1095,15 @@
                         </svg>
                         <div class="conf-ring-center">
                             <div class="conf-pct" id="confPct">--</div>
-                            <div class="conf-label">CONFIDENCE</div>
+                            <div class="conf-label">RELIABILITY</div>
                         </div>
                     </div>
                     <!-- 等级徽章 -->
-                    <div class="conf-badge" id="confBadge">HIGH CONFIDENCE</div>
+                    <div class="conf-badge" id="confBadge">HIGH RELIABILITY</div>
                     <!-- 子项进度条 -->
                     <div class="conf-subs">
                         <div class="conf-sub-row">
-                            <div class="conf-sub-label">图像质量</div>
+                            <div class="conf-sub-label">遥感质量</div>
                             <div class="conf-sub-bar-wrap">
                                 <div class="conf-sub-bar" id="subBar0"
                                      style="background:linear-gradient(90deg,#00d4ff,#00ff88)"></div>
@@ -1119,7 +1119,7 @@
                             <div class="conf-sub-val" id="subVal1">--</div>
                         </div>
                         <div class="conf-sub-row">
-                            <div class="conf-sub-label">光谱完整度</div>
+                            <div class="conf-sub-label">冠层完整度</div>
                             <div class="conf-sub-bar-wrap">
                                 <div class="conf-sub-bar" id="subBar2"
                                      style="background:linear-gradient(90deg,#f59e0b,#00ff88)"></div>
@@ -1131,27 +1131,27 @@
             </div>
         </div>
 
-        <!-- 批量预测（flex:1 撑满剩余空间） -->
+        <!-- 批量评估（flex:1 撑满剩余空间） -->
         <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:120px;">
             <div class="card-head">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#a855f7,#6366f1)"></div>
-                <div class="card-title" style="color:#a855f7">批量预测</div>
+                <div class="card-title" style="color:#a855f7">批量碳汇评估</div>
             </div>
             <div class="card-body" style="flex:1;display:flex;flex-direction:column;justify-content:center;">
                 <div class="batch-upload-area" onclick="document.getElementById('batchInput').click()">
                     <div class="icon">📦</div>
-                    <div class="text">上传批量ZIP包<br><span style="color:rgba(168,85,247,0.6)">images/ + Climate/ + spectral.csv</span></div>
+                    <div class="text">上传果园批量ZIP包<br><span style="color:rgba(168,85,247,0.6)">遥感影像 + 气候驱动 + 冠层光谱</span></div>
                 </div>
                 <input type="file" id="batchInput" style="display:none" accept=".zip" onchange="handleBatch(this)">
                 <!-- 批量结果摘要 -->
                 <div id="batchSummary" style="display:none;margin-top:10px;">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                         <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:6px;padding:8px;text-align:center;">
-                            <div style="font-size:0.65rem;color:var(--text-dim)">样本数</div>
+                            <div style="font-size:0.65rem;color:var(--text-dim)">地块数</div>
                             <div style="font-size:1.2rem;font-weight:700;color:#a855f7" id="bCount">0</div>
                         </div>
                         <div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:6px;padding:8px;text-align:center;">
-                            <div style="font-size:0.65rem;color:var(--text-dim)">均值</div>
+                            <div style="font-size:0.65rem;color:var(--text-dim)">平均碳汇</div>
                             <div style="font-size:1.2rem;font-weight:700;color:#a855f7" id="bMean">--</div>
                         </div>
                     </div>
@@ -1165,17 +1165,17 @@
     <!-- ── 中列 ── -->
     <div class="center-col">
 
-        <!-- 气候时序图 -->
+        <!-- 气候驱动时序图 -->
         <div class="card" style="flex:1.1;display:flex;flex-direction:column;overflow:hidden;">
             <div class="card-head">
                 <div class="card-head-bar"></div>
-                <div class="card-title">气候时序数据</div>
+                <div class="card-title">碳汇环境驱动时序</div>
                 <div class="var-btns" id="varBtns">
                     <button class="var-btn active" data-key="pr">降水</button>
                     <button class="var-btn" data-key="tmmx">最高温</button>
                     <button class="var-btn" data-key="tmmn">最低温</button>
                     <button class="var-btn" data-key="srad">辐射</button>
-                    <button class="var-btn" data-key="soil">土壤水</button>
+                    <button class="var-btn" data-key="soil">水分</button>
                     <button class="var-btn" data-key="vpd">VPD</button>
                     <button class="var-btn" data-key="pet">潜蒸发</button>
                     <button class="var-btn" data-key="aet">实蒸发</button>
@@ -1191,16 +1191,16 @@
             </div>
         </div>
 
-        <!-- 光谱反射率曲线 -->
+        <!-- 冠层光谱反射率曲线 -->
         <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
             <div class="card-head" style="flex-shrink:0;">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#00ff88,#00d4ff)"></div>
-                <div class="card-title">高光谱反射率曲线</div>
+                <div class="card-title">果树冠层光谱响应曲线</div>
                 <div class="spec-note">
                     <span class="spec-note-tag">~1100nm</span>
                     <span class="spec-note-tag">~1450nm</span>
                     <span class="spec-note-tag">~2200nm</span>
-                    <span style="font-size:0.65rem;color:var(--text-dim)">SOC 敏感波段</span>
+                    <span style="font-size:0.65rem;color:var(--text-dim)">冠层碳汇敏感波段</span>
                 </div>
             </div>
             <div class="chart-wrap" style="flex:1;padding:6px 10px 8px;">
@@ -1213,20 +1213,20 @@
     <!-- ── 右列 ── -->
     <div class="right-col">
 
-        <!-- 卫星图预览 -->
+        <!-- 果园遥感图预览 -->
         <div class="card" style="flex-shrink:0;">
             <div class="card-head">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#f59e0b,#ef4444)"></div>
-                <div class="card-title">卫星图像预览</div>
+                <div class="card-title">果园遥感影像预览</div>
                 <span style="font-size:0.65rem;color:var(--text-dim)" id="pointIdLabel">Band4/3/2 RGB</span>
             </div>
             <div class="card-body" style="padding:8px 14px 12px;">
                 <div class="satellite-preview" id="satPreview">
                     <div class="satellite-placeholder" id="satPlaceholder">
                         <div class="sat-icon">🛰️</div>
-                        <div class="sat-text">上传 .tif 后显示</div>
+                        <div class="sat-text">上传果园影像后显示</div>
                     </div>
-                    <img id="satImg" style="display:none;" alt="卫星图">
+                    <img id="satImg" style="display:none;" alt="果园遥感影像">
                     <div class="satellite-overlay" id="satOverlay" style="display:none;">
                         <div id="satPointId">--</div>
                         <div class="band-tags">
@@ -1239,28 +1239,28 @@
             </div>
         </div>
 
-        <!-- SOC 仪表盘 -->
+        <!-- 碳汇仪表盘 -->
         <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;" id="gaugeCard">
             <div class="card-head" style="flex-shrink:0;">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#f59e0b,#00ff88)"></div>
-                <div class="card-title">SOC 预测结果</div>
-                <span style="font-size:0.65rem;color:var(--text-dim)">土壤有机碳含量</span>
+                <div class="card-title">果园碳汇评估结果</div>
+                <span style="font-size:0.65rem;color:var(--text-dim)">果树碳储量与固碳潜力</span>
             </div>
             <div class="gauge-wrap" style="position:relative;flex:1;min-height:0;">
                 <div class="gauge-chart" id="gaugeChart"></div>
                 <div class="gauge-center-info">
                     <div class="gauge-value" id="gaugeValue">--</div>
-                    <div class="gauge-unit">g / kg</div>
-                    <div class="gauge-level" id="gaugeLevel" style="color:var(--text-dim)">待预测</div>
+                    <div class="gauge-unit">tCO₂e / ha</div>
+                    <div class="gauge-level" id="gaugeLevel" style="color:var(--text-dim)">待评估</div>
                 </div>
             </div>
         </div>
 
-        <!-- 气候雷达图 -->
+        <!-- 环境驱动雷达图 -->
         <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
             <div class="card-head" style="flex-shrink:0;">
                 <div class="card-head-bar" style="background:linear-gradient(180deg,#a855f7,#00d4ff)"></div>
-                <div class="card-title">气候特征雷达</div>
+                <div class="card-title">碳汇环境因子雷达</div>
                 <span style="font-size:0.65rem;color:var(--text-dim)">2010–2015 均值</span>
             </div>
             <div class="radar-wrap" style="flex:1;min-height:0;padding:4px 8px 8px;">
@@ -1371,7 +1371,7 @@ const VAR_META = {
     tmmx: { name: '最高温度',   unit: '°C',    color: '#ff6b6b' },
     tmmn: { name: '最低温度',   unit: '°C',    color: '#74b9ff' },
     srad: { name: '太阳辐射',   unit: 'W/m²',  color: '#fdcb6e' },
-    soil: { name: '土壤水分',   unit: 'mm',    color: '#00cec9' },
+    soil: { name: '果园水分',   unit: 'mm',    color: '#00cec9' },
     vpd:  { name: '水汽压亏缺', unit: 'kPa',   color: '#e17055' },
     pet:  { name: '潜在蒸散发', unit: 'mm',    color: '#a29bfe' },
     aet:  { name: '实际蒸散发', unit: 'mm',    color: '#55efc4' },
@@ -1406,7 +1406,7 @@ function initEmptyClimate() {
         backgroundColor: 'transparent',
         graphic: [{
             type: 'text', left: 'center', top: 'middle',
-            style: { text: '上传气候数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+            style: { text: '上传气候驱动数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
         }]
     });
 }
@@ -1415,7 +1415,7 @@ function initEmptySpectral() {
         backgroundColor: 'transparent',
         graphic: [{
             type: 'text', left: 'center', top: 'middle',
-            style: { text: '上传光谱数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+            style: { text: '上传冠层光谱数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
         }]
     });
 }
@@ -1424,7 +1424,7 @@ function initEmptyRadar() {
         backgroundColor: 'transparent',
         graphic: [{
             type: 'text', left: 'center', top: 'middle',
-            style: { text: '上传气候数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
+            style: { text: '上传气候驱动数据后显示', fill: 'rgba(180,220,255,0.2)', font: '14px Microsoft YaHei' }
         }]
     });
 }
@@ -1499,8 +1499,8 @@ async function previewSatellite(file) {
             document.getElementById('satImg').style.display = 'block';
             document.getElementById('satPlaceholder').style.display = 'none';
             document.getElementById('satOverlay').style.display = 'block';
-            document.getElementById('satPointId').textContent = 'Point ID: ' + data.point_id;
-            document.getElementById('pointIdLabel').textContent = `Point ${data.point_id}`;
+            document.getElementById('satPointId').textContent = 'Plot ID: ' + data.point_id;
+            document.getElementById('pointIdLabel').textContent = `Plot ${data.point_id}`;
         }
     } catch(e) { console.warn('卫星图预览失败:', e); }
 }
@@ -1636,7 +1636,7 @@ function updateSpectralChart(wavelengths, values) {
         grid: { left: 52, right: 16, top: 14, bottom: 36 },
         xAxis: {
             type: 'value', min: 400, max: 2500,
-            name: '波长 (nm)', nameLocation: 'end',
+            name: '冠层波段 (nm)', nameLocation: 'end',
             nameTextStyle: { color: 'rgba(180,220,255,0.4)', fontSize: 9 },
             axisLine: { lineStyle: { color: 'rgba(0,212,255,0.2)' } },
             axisTick: { show: false },
@@ -1644,7 +1644,7 @@ function updateSpectralChart(wavelengths, values) {
             splitLine: { show: false }
         },
         yAxis: {
-            type: 'value', name: '反射率',
+            type: 'value', name: '冠层反射率',
             nameTextStyle: { color: 'rgba(180,220,255,0.4)', fontSize: 9 },
             axisLine: { show: false }, axisTick: { show: false },
             axisLabel: { color: 'rgba(180,220,255,0.5)', fontSize: 9 },
@@ -1654,7 +1654,7 @@ function updateSpectralChart(wavelengths, values) {
             trigger: 'axis', backgroundColor: 'rgba(4,16,40,0.95)',
             borderColor: '#00ff88', borderWidth: 1,
             textStyle: { color: '#c8e8ff', fontSize: 11 },
-            formatter: p => `${p[0].value[0]} nm<br/>反射率: <b style="color:#00ff88">${p[0].value[1].toFixed(4)}</b>`
+            formatter: p => `${p[0].value[0]} nm<br/>冠层反射率: <b style="color:#00ff88">${p[0].value[1].toFixed(4)}</b>`
         },
         series: [{
             data: pts, type: 'line', smooth: false, symbol: 'none',
@@ -1719,7 +1719,7 @@ function updateRadarChart() {
         series: [{
             type: 'radar',
             data: [{
-                value: values, name: '气候均值',
+                value: values, name: '环境因子均值',
                 areaStyle: {
                     color: new echarts.graphic.RadialGradient(0.5,0.5,1,[
                         { offset:0, color:'rgba(168,85,247,0.35)' },
@@ -1774,7 +1774,7 @@ function showConfidence() {
     }, 25);
 
     // 徽章
-    document.getElementById('confBadge').textContent = 'HIGH CONFIDENCE ✦';
+    document.getElementById('confBadge').textContent = 'HIGH RELIABILITY ✦';
 
     // 子项进度条延迟出现
     subs.forEach(({ id, val }, i) => {
@@ -1792,9 +1792,9 @@ function showConfidence() {
 function updateGauge(soc) {
     const pct = soc / 560;
     let level, levelColor;
-    if (soc < 20)      { level = '低 碳'; levelColor = '#22c55e'; }
-    else if (soc < 80) { level = '中 碳'; levelColor = '#f59e0b'; }
-    else               { level = '高 碳'; levelColor = '#ef4444'; }
+    if (soc < 20)      { level = '低汇'; levelColor = '#22c55e'; }
+    else if (soc < 80) { level = '中汇'; levelColor = '#f59e0b'; }
+    else               { level = '高汇'; levelColor = '#ef4444'; }
 
     // 数字跳动
     const valEl = document.getElementById('gaugeValue');
@@ -1854,7 +1854,7 @@ async function startPrediction() {
     const mask = document.getElementById('loadingMask');
     const sub  = document.getElementById('loadingSub');
     mask.classList.add('active');
-    sub.textContent = '正在加载并预处理数据...';
+    sub.textContent = '正在加载并预处理果园数据...';
 
     const formData = new FormData();
     formData.append('image',    FILES.image);
@@ -1862,7 +1862,7 @@ async function startPrediction() {
     formData.append('spectral', FILES.spectral);
 
     try {
-        sub.textContent = '模型推理中，请稍候...';
+        sub.textContent = '碳汇模型评估中，请稍候...';
         const res  = await fetch('/api/predict', { method:'POST', body:formData });
         const data = await res.json();
 
@@ -1876,17 +1876,17 @@ async function startPrediction() {
             showConfidence();
 
             // 更新点ID显示
-            document.getElementById('pointIdLabel').textContent = `Point ${data.point_id}`;
-            document.getElementById('satPointId').textContent   = `Point ID: ${data.point_id}`;
+            document.getElementById('pointIdLabel').textContent = `Plot ${data.point_id}`;
+            document.getElementById('satPointId').textContent   = `Plot ID: ${data.point_id}`;
 
             // 触发气候/光谱可视化（用原始值接口）
             if (FILES.climate) parseClimate(FILES.climate);
             if (FILES.spectral) parseSpectral(FILES.spectral);
             if (FILES.image)   previewSatellite(FILES.image);
 
-            document.getElementById('statusText').textContent = `✓ 预测完成`;
+            document.getElementById('statusText').textContent = `✓ 评估完成`;
         } else {
-            alert('预测失败: ' + (data.error || '未知错误'));
+            alert('评估失败: ' + (data.error || '未知错误'));
         }
     } catch(e) {
         alert('请求失败: ' + e.message);
@@ -1922,7 +1922,7 @@ async function handleBatch(input) {
     const file = input.files[0];
     if (!file) return;
     const mask = document.getElementById('loadingMask');
-    document.getElementById('loadingSub').textContent = '批量推理中...';
+    document.getElementById('loadingSub').textContent = '批量碳汇评估中...';
     mask.classList.add('active');
     const formData = new FormData();
     formData.append('batch_zip', file);
@@ -1940,7 +1940,7 @@ async function handleBatch(input) {
             // 弹出全屏浮层
             if (vals.length > 0) openBatchModal(results, file.name, data.batch_climate || {});
         } else {
-            alert('批量预测失败: ' + (data.error || ''));
+            alert('批量评估失败: ' + (data.error || ''));
         }
     } catch(e) { alert('请求失败: ' + e.message); }
     finally { mask.classList.remove('active'); }
@@ -1964,7 +1964,7 @@ function openBatchModal(results, filename, batchClimate = {}) {
     document.getElementById('bmLow').textContent   = (low/n*100).toFixed(1)+'%';
     document.getElementById('bmMid').textContent   = (mid/n*100).toFixed(1)+'%';
     document.getElementById('bmHigh').textContent  = (high/n*100).toFixed(1)+'%';
-    document.getElementById('bmSubtitle').textContent = filename + '  ·  共 ' + n + ' 个采样点';
+    document.getElementById('bmSubtitle').textContent = filename + '  ·  共 ' + n + ' 个果园地块';
 
     // 显示浮层（先显示，再 resize ECharts 容器才有尺寸）
     document.getElementById('batchModal').classList.add('active');
@@ -1981,7 +1981,7 @@ function openBatchModal(results, filename, batchClimate = {}) {
     tbody.innerHTML = sorted.map((r,i) => {
         const v = r.soc_prediction;
         const cls = v<20?'soc-low':v<=80?'soc-mid':'soc-high';
-        const lbl = v<20?'低碳':v<=80?'中碳':'高碳';
+        const lbl = v<20?'低汇':v<=80?'中汇':'高汇';
         return `<tr>
             <td style="color:var(--text-dim)">${i+1}</td>
             <td style="color:#00d4ff;font-family:monospace">${r.point_id}</td>
@@ -2038,7 +2038,7 @@ function renderBmHist(vals) {
             emphasis:{ itemStyle:{ color:'rgba(0,255,136,0.85)' } },
         }],
         tooltip:{ trigger:'axis', backgroundColor:'rgba(4,16,40,0.9)',
-            formatter: p => `SOC ≥ ${p[0].name} g/kg<br/>样本数: ${p[0].value}` }
+            formatter: p => `碳汇量 ≥ ${p[0].name} tCO₂e/ha<br/>地块数: ${p[0].value}` }
     }, true);
 }
 
@@ -2079,7 +2079,7 @@ function renderBmClimateChart() {
             backgroundColor: 'transparent',
             graphic: [{
                 type: 'text', left: 'center', top: 'middle',
-                style: { text: '暂无气候时序数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
+                style: { text: '暂无环境驱动时序数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
             }]
         }, true);
         return;
@@ -2096,7 +2096,7 @@ function renderBmClimateChart() {
                 backgroundColor: 'transparent',
                 graphic: [{
                     type: 'text', left: 'center', top: 'middle',
-                    style: { text: '该采样点无可用气候数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
+                    style: { text: '该果园地块无可用环境数据', fill: 'rgba(180,220,255,0.35)', font: '14px Microsoft YaHei' }
                 }]
             }, true);
             return;
@@ -2192,7 +2192,7 @@ function renderBmBox(vals) {
         xAxis:{type:'category',data:['全部样本'],
             axisLabel:{color:'rgba(180,220,255,0.55)'},
             axisLine:{lineStyle:{color:'rgba(0,212,255,0.2)'}}},
-        yAxis:{type:'value',name:'SOC (g/kg)',
+        yAxis:{type:'value',name:'碳汇量 (tCO₂e/ha)',
             nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
             axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
             splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
@@ -2208,7 +2208,7 @@ function renderBmBox(vals) {
         tooltip:{trigger:'item',backgroundColor:'rgba(4,16,40,0.9)',
             formatter: p => p.seriesType==='boxplot'
                 ? `下限:${p.data[1].toFixed(2)}<br>Q1:${p.data[2].toFixed(2)}<br>中位:${p.data[3].toFixed(2)}<br>Q3:${p.data[4].toFixed(2)}<br>上限:${p.data[5].toFixed(2)}`
-                : `离群值: ${p.data[1].toFixed(2)} g/kg`}
+                : `离群值: ${p.data[1].toFixed(2)} tCO₂e/ha`}
     }, true);
 }
 
@@ -2224,11 +2224,11 @@ function renderBmScatter(results) {
     bmScatterInstance.setOption({
         backgroundColor:'transparent',
         grid:{top:20,right:20,bottom:36,left:52},
-        xAxis:{type:'value',name:'真实 SOC',min:0,max:maxV,
+        xAxis:{type:'value',name:'实测碳汇量',min:0,max:maxV,
             nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
             axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
             splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
-        yAxis:{type:'value',name:'预测 SOC',min:0,max:maxV,
+        yAxis:{type:'value',name:'评估碳汇量',min:0,max:maxV,
             nameTextStyle:{color:'rgba(180,220,255,0.55)',fontSize:10},
             axisLabel:{color:'rgba(180,220,255,0.55)',fontSize:10},
             splitLine:{lineStyle:{color:'rgba(0,212,255,0.08)'}}},
@@ -2240,7 +2240,7 @@ function renderBmScatter(results) {
               itemStyle:{color:'rgba(0,255,136,0.7)',borderColor:'rgba(0,255,136,0.3)',borderWidth:1} }
         ],
         tooltip:{trigger:'item',backgroundColor:'rgba(4,16,40,0.9)',
-            formatter: p => `真实: ${p.data[0].toFixed(2)} g/kg<br>预测: ${p.data[1].toFixed(2)} g/kg`}
+            formatter: p => `实测: ${p.data[0].toFixed(2)} tCO₂e/ha<br>评估: ${p.data[1].toFixed(2)} tCO₂e/ha`}
     }, true);
 }
 
@@ -2277,10 +2277,10 @@ async function checkStatus() {
         const data = await res.json();
         const dot  = document.getElementById('statusDot');
         if (data.model_loaded) {
-            document.getElementById('statusText').textContent = '模型就绪';
+            document.getElementById('statusText').textContent = '碳汇模型就绪';
             dot.classList.remove('offline');
         } else {
-            document.getElementById('statusText').textContent = '模型未加载';
+            document.getElementById('statusText').textContent = '碳汇模型未加载';
             dot.classList.add('offline');
         }
     } catch {
